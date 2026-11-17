@@ -66,6 +66,8 @@
         }
 
         #scare-face { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; pointer-events: none; z-index: 80; filter: contrast(1.25) saturate(1.2); }
+        .scare-ai { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; pointer-events: none; z-index: 81; will-change: transform, opacity, filter; transform-origin: center center; }
+        #scare-scanlines { opacity: 0; pointer-events: none; z-index: 82; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.32) 0px, rgba(0,0,0,0.32) 1px, transparent 1px, transparent 3px); mix-blend-mode: multiply; }
         /* Cinemática de dormir */
         #sleep-overlay { background: #000; opacity: 0; pointer-events: none; z-index: 90; }
         .sleep-bar { position: fixed; left: 0; width: 100%; height: 0; background: #000; pointer-events: none; z-index: 91; }
@@ -688,6 +690,10 @@
     <div id="crosshair"></div>
     <div id="sleep-overlay" class="fill"></div>
     <canvas id="scare-face"></canvas>
+    <img id="scare-img-a" class="scare-ai" src="/assets/jumpscare/errante_a.jpg" alt="" referrerpolicy="no-referrer" decoding="async" />
+    <img id="scare-img-b" class="scare-ai" src="/assets/jumpscare/errante_b.jpg" alt="" referrerpolicy="no-referrer" decoding="async" />
+    <img id="scare-img-v" class="scare-ai" src="/assets/jumpscare/vigia.jpg" alt="" referrerpolicy="no-referrer" decoding="async" />
+    <div id="scare-scanlines" class="fill"></div>
     <div id="sleep-bar-top" class="sleep-bar"></div><div id="sleep-bar-bottom" class="sleep-bar"></div>
     <div id="sleep-caption"><div class="sc-big" id="sc-big"></div><div class="sc-small" id="sc-small"></div></div>
 
@@ -904,7 +910,7 @@
             note: $('note-panel'), noteTitle: $('note-title'), noteText: $('note-text'),
             objective: $('objective'), victoryText: $('victory-text'), introText: $('intro-text'), time: $('time-display'), dayCount: $('day-count'), sanity: $('sanity-fill'), hunger: $('hunger-fill'),
             hotbar: $('inventory-hud'), pages: $('pages-count'), cam: $('camera-status'),
-            prompt: $('interact-prompt'), glitch: $('glitch-overlay'), flash: $('camera-flash-overlay'),
+            prompt: $('interact-prompt'), glitch: $('glitch-overlay'), flash: $('camera-flash-overlay'), vignette: $('vignette'),
             start: $('start-screen'), pause: $('pause-screen'),
             death: $('jumpscare-screen'), victory: $('victory-screen'),
             deathTitle: $('death-title'), deathDesc: $('death-desc')
@@ -1086,17 +1092,18 @@
                     noiseBurst({ filter: 'highpass', freq: 3000, dur: 0.1, vol: 0.2 });
                     break;
                 case 'monsterScream':
-                    tone({ type: 'sawtooth', points: [[0, 150], [0.4, 900], [0.8, 100]], dur: 0.8, vol: 0.7 });
-                    tone({ type: 'sawtooth', points: [[0, 155], [0.4, 760], [0.8, 90]], dur: 0.8, vol: 0.5 });
-                    noiseBurst({ filter: 'bandpass', freq: 1500, dur: 0.7, vol: 0.3 });
+                    tone({ type: 'sawtooth', points: [[0, 120], [0.22, 980], [0.55, 640], [0.85, 95]], dur: 0.9, vol: 0.78 });
+                    tone({ type: 'sawtooth', points: [[0, 114], [0.22, 810], [0.85, 78]], dur: 0.9, vol: 0.56 });
+                    tone({ type: 'square', points: [[0, 52], [0.4, 38], [0.9, 24]], dur: 0.9, vol: 0.45 });
+                    noiseBurst({ filter: 'bandpass', freq: 1650, dur: 0.78, vol: 0.36 });
                     break;
                 case 'jumpscare':   // chillido desgarrado + golpe grave + ruido: mucho más sucio que un grito normal
-                    tone({ type: 'sawtooth', points: [[0, 70], [0.1, 1100], [0.4, 1550], [1.1, 720], [1.7, 120]], dur: 1.8, vol: 0.85 });
-                    tone({ type: 'square', points: [[0, 66], [0.1, 1190], [0.4, 1380], [1.1, 640], [1.7, 100]], dur: 1.8, vol: 0.5 });
-                    tone({ type: 'sawtooth', points: [[0, 44], [0.2, 30], [1.7, 20]], dur: 1.8, vol: 0.95 });
-                    tone({ type: 'sine', points: [[0, 3100], [0.8, 2500]], dur: 0.9, vol: 0.22, delay: 0.1 });
-                    noiseBurst({ filter: 'bandpass', freq: 2300, dur: 1.3, vol: 0.5 });
-                    noiseBurst({ freq: 320, dur: 0.55, vol: 1.0 });
+                    tone({ type: 'sawtooth', points: [[0, 65], [0.08, 1240], [0.35, 1680], [1.05, 760], [1.75, 110]], dur: 1.85, vol: 0.92 });
+                    tone({ type: 'square', points: [[0, 61], [0.08, 1310], [0.38, 1460], [1.05, 670], [1.75, 92]], dur: 1.85, vol: 0.56 });
+                    tone({ type: 'sawtooth', points: [[0, 42], [0.18, 28], [1.75, 18]], dur: 1.85, vol: 1.0 });
+                    tone({ type: 'sine', points: [[0, 3200], [0.85, 2400]], dur: 0.95, vol: 0.25, delay: 0.08 });
+                    noiseBurst({ filter: 'bandpass', freq: 2450, dur: 1.4, vol: 0.55 });
+                    noiseBurst({ freq: 340, dur: 0.65, vol: 1.0 });
                     break;
                 case 'thunder':
                     noiseBurst({ freq: 200, dur: 1.9, vol: 0.9, delay: 0.25 });
@@ -1111,9 +1118,20 @@
                     tone({ type: 'sine', f0: 880, f1: 1320, dur: 0.25, vol: 0.2, delay: 0.1 });
                     break;
                 case 'growl':
-                    tone({ type: 'sawtooth', points: [[0, 95], [0.5, 62], [1.1, 42]], dur: 1.1, vol: 0.32 * vol });
-                    tone({ type: 'square', points: [[0, 47], [1.1, 30]], dur: 1.1, vol: 0.2 * vol });
-                    noiseBurst({ filter: 'bandpass', freq: 280, dur: 0.9, vol: 0.22 * vol });
+                    tone({ type: 'sawtooth', points: [[0, 88], [0.45, 56], [1.2, 34]], dur: 1.25, vol: 0.38 * vol });
+                    tone({ type: 'square', points: [[0, 44], [1.2, 26]], dur: 1.25, vol: 0.24 * vol });
+                    tone({ type: 'triangle', points: [[0, 36], [1.2, 22]], dur: 1.25, vol: 0.28 * vol });
+                    noiseBurst({ filter: 'bandpass', freq: 260, dur: 1.05, vol: 0.28 * vol });
+                    break;
+                case 'distantBellow':   // bramido hueco y distorsionado del Errante entre los árboles
+                    tone({ type: 'sawtooth', points: [[0, 230], [0.25, 310], [0.85, 175], [1.7, 72]], dur: 1.75, vol: 0.22 * vol });
+                    tone({ type: 'sawtooth', points: [[0, 224], [0.25, 298], [0.85, 168], [1.7, 68]], dur: 1.75, vol: 0.16 * vol });
+                    noiseBurst({ filter: 'bandpass', freq: 520, dur: 1.4, vol: 0.14 * vol, delay: 0.08 });
+                    break;
+                case 'neckCrack':   // chasquido seco de hueso cuando tuerce el cráneo de golpe
+                    noiseBurst({ filter: 'highpass', freq: 2200, dur: 0.07, vol: 0.35 * vol });
+                    tone({ type: 'square', f0: 520, f1: 130, dur: 0.06, vol: 0.22 * vol });
+                    noiseBurst({ filter: 'bandpass', freq: 1400, dur: 0.08, vol: 0.22 * vol, delay: 0.045 });
                     break;
                 case 'bang':
                     tone({ type: 'sine', f0: 95, f1: 35, dur: 0.2, vol: 0.9 * vol });
@@ -1133,9 +1151,9 @@
                     tone({ type: 'square', f0: 190, f1: 80, dur: 0.07, vol: 0.12 });
                     break;
                 case 'whisper':
-                    noiseBurst({ filter: 'bandpass', freq: 2200, dur: 1.1, vol: 0.11 * vol });
-                    noiseBurst({ filter: 'bandpass', freq: 1500, dur: 0.9, vol: 0.09 * vol, delay: 0.35 });
-                    tone({ type: 'sine', points: [[0, 420], [0.5, 300], [1, 360]], dur: 1.0, vol: 0.05 * vol });
+                    noiseBurst({ filter: 'bandpass', freq: 2200, dur: 1.15, vol: 0.13 * vol });
+                    noiseBurst({ filter: 'bandpass', freq: 1350, dur: 0.95, vol: 0.11 * vol, delay: 0.32 });
+                    tone({ type: 'sine', points: [[0, 420], [0.5, 290], [1.1, 350]], dur: 1.1, vol: 0.06 * vol });
                     break;
                 case 'quick_scratch':
                     noiseBurst({ filter: 'bandpass', freq: 2600, dur: 0.34, vol: 0.28 * vol });
@@ -4134,8 +4152,8 @@
         // Rendimiento: cada segmento del cuerpo es UNA malla fusionada con color por vértice (~27 mallas en vez de ~65),
         // así que cuesta menos en la pasada principal y en las de sombras. No usa luces nuevas.
         const MC = {
-            skin: [0.045, 0.045, 0.05], dark: [0.012, 0.012, 0.014], bone: [0.60, 0.57, 0.50],
-            flesh: [0.20, 0.045, 0.045], cloth: [1, 1, 1]
+            skin: [0.032, 0.030, 0.036], dark: [0.008, 0.008, 0.010], bone: [0.68, 0.63, 0.54],
+            flesh: [0.28, 0.03, 0.03], cloth: [1, 1, 1]
         };
         // Pieza: geometría + color + posición + rotación Euler XYZ (el mismo orden que usa three.js)
         const mpart = (g, col, x, y, z, rx, ry, rz) => ({ g, c: MC[col] || col, p: [x || 0, y || 0, z || 0], r: [rx || 0, ry || 0, rz || 0] });
@@ -4187,10 +4205,11 @@
             group.add(body);
 
             const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.12 });
-            const clothMat = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x1b1411, roughness: 1, side: THREE.DoubleSide });
+            const clothMat = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x150f0d, roughness: 1, side: THREE.DoubleSide });
             if (ghost) for (const m of [mat, clothMat]) { m.transparent = true; m.depthWrite = false; }
+            const bloodCol = variant ? MC.flesh : [0.42, 0.015, 0.015];
             const rig = {};
-            rig.eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2200, transparent: true });
+            rig.eyeMat = new THREE.MeshBasicMaterial({ color: 0xff1a00, transparent: true });
 
             // Grupo articulado con una sola malla fusionada
             const seg = (parent, mt, parts, x, y, z) => {
@@ -4201,151 +4220,164 @@
                 return g;
             };
 
-            // Cadera y piernas (rodilla invertida, pies con tres dedos y espolón)
+            // Cadera y piernas (rodilla invertida, pies con tres dedos, garras ensangrentadas y espolón)
             const hip = seg(body, mat, [
-                mbox(0.44, 0.2, 0.3, 'skin', 0, 0, 0),
-                mcone(0.045, 0.24, 'bone', 0.25, 0.04, -0.04, 0, 0, -1.25),
-                mcone(0.045, 0.24, 'bone', -0.25, 0.04, -0.04, 0, 0, 1.25),
-                mcone(0.04, 0.3, 'bone', 0, -0.04, -0.22, -2.0, 0, 0)
+                mbox(0.46, 0.22, 0.32, 'skin', 0, 0, 0),
+                mcone(0.05, 0.28, 'bone', 0.26, 0.04, -0.04, 0, 0, -1.25),
+                mcone(0.05, 0.28, 'bone', -0.26, 0.04, -0.04, 0, 0, 1.25),
+                mcone(0.045, 0.34, 'bone', 0, -0.04, -0.22, -2.0, 0, 0)
             ], 0, 1.68, 0);
             rig.hip = hip;
             const makeLeg = (sx) => {
                 const thigh = seg(hip, mat, [
-                    mcyl(0.09, 0.06, 0.84, 'skin', 0, -0.42, 0),
-                    mcone(0.035, 0.22, 'bone', 0, -0.84, -0.06, -2.4, 0, 0)
+                    mcyl(0.095, 0.06, 0.84, 'skin', 0, -0.42, 0),
+                    mcone(0.04, 0.26, 'bone', 0, -0.84, -0.06, -2.4, 0, 0),
+                    mcone(0.03, 0.2, 'bone', sx * 0.07, -0.4, 0.04, 0.4, 0, -sx * 0.9)
                 ], sx * 0.17, 0, 0);
                 const knee = seg(thigh, mat, [
                     mcyl(0.06, 0.036, 0.84, 'skin', 0, -0.42, 0),
                     mcyl(0.075, 0.05, 0.4, 'skin', 0, -0.2, -0.04)
                 ], 0, -0.84, 0);
-                const foot = [mcone(0.04, 0.24, 'bone', 0, 0.04, -0.12, -Math.PI / 2 - 0.15, 0, 0)];
-                for (let i = -1; i <= 1; i++) foot.push(mcone(0.035, 0.42, 'bone', i * 0.08, 0.02, 0.2, Math.PI / 2 + 0.1, 0, 0));
+                const foot = [mcone(0.045, 0.26, 'bone', 0, 0.04, -0.12, -Math.PI / 2 - 0.15, 0, 0)];
+                for (let i = -1; i <= 1; i++) foot.push(mcone(0.035, 0.44, bloodCol, i * 0.08, 0.02, 0.21, Math.PI / 2 + 0.1, 0, 0));
                 const ankle = seg(knee, mat, foot, 0, -0.84, 0);
                 return { thigh, knee, ankle };
             };
             rig.legL = makeLeg(-1);
             rig.legR = makeLeg(1);
 
-            // Torso y pecho: encorvado, con espinas dorsales y costillas abiertas
-            const torsoParts = [mcyl(0.17, 0.13, 0.88, 'skin', 0, 0.44, 0)];
-            for (let i = 0; i < 5; i++) torsoParts.push(mcone(0.035, 0.22, 'bone', 0, 0.1 + i * 0.17, -0.15, -1.9, 0, 0));
+            // Torso y pecho: encorvado, espinas dorsales largas, costillas rotas sobresaliendo y núcleo visceral
+            const torsoParts = [mcyl(0.16, 0.12, 0.88, 'skin', 0, 0.44, 0), mcyl(0.08, 0.06, 0.84, 'flesh', 0, 0.44, 0.06)];
+            for (let i = 0; i < 5; i++) torsoParts.push(mcone(0.04, 0.28 + (i % 2) * 0.06, 'bone', 0, 0.1 + i * 0.17, -0.15, -1.9, 0, 0));
             const torso = seg(hip, mat, torsoParts, 0, 0.05, 0);
             rig.torso = torso;
 
             const chestParts = [
-                mcyl(0.16, 0.13, 0.95, 'flesh', 0, 0.48, 0),          // interior: se ve entre las costillas
-                mbox(0.54, 0.95, 0.1, 'skin', 0, 0.48, -0.1),         // espalda
-                mbox(1.02, 0.14, 0.3, 'skin', 0, 0.92, 0),            // hombros
-                mcone(0.05, 0.34, 'bone', 0.48, 1.04, 0, 0, 0, -0.55),
-                mcone(0.05, 0.34, 'bone', -0.48, 1.04, 0, 0, 0, 0.55)
+                mcyl(0.17, 0.13, 0.95, 'flesh', 0, 0.48, 0),          // interior visceral entre costillas
+                mcyl(0.08, 0.06, 0.88, bloodCol, 0, 0.48, 0.07),      // tendón sangriento frontal
+                mbox(0.56, 0.96, 0.1, 'skin', 0, 0.48, -0.1),         // espalda
+                mbox(1.10, 0.15, 0.32, 'skin', 0, 0.92, 0),           // hombros más anchos y huesudos
+                mcone(0.06, 0.44, 'bone', 0.52, 1.08, -0.02, -0.15, 0, -0.62),
+                mcone(0.06, 0.44, 'bone', -0.52, 1.08, -0.02, -0.15, 0, 0.62),
+                mcone(0.04, 0.30, 'bone', 0.34, 1.04, -0.12, -0.5, 0, -0.25),
+                mcone(0.04, 0.30, 'bone', -0.34, 1.04, -0.12, -0.5, 0, 0.25)
             ];
             for (let i = 0; i < 5; i++) {
-                const y = 0.12 + i * 0.18, w = 0.50 - i * 0.03;
+                const y = 0.12 + i * 0.18, w = 0.52 - i * 0.03;
                 for (const sx of [-1, 1]) {
-                    chestParts.push(mbox(0.05, 0.045, 0.32, 'bone', sx * w / 2, y, 0.02));
-                    chestParts.push(mbox(w * 0.38, 0.045, 0.045, 'bone', sx * w * 0.3, y, 0.17, 0, sx * 0.35, 0));
+                    chestParts.push(mbox(0.052, 0.046, 0.34, 'bone', sx * w / 2, y, 0.02));
+                    chestParts.push(mbox(w * 0.40, 0.044, 0.044, 'bone', sx * w * 0.31, y, 0.18, 0, sx * 0.38, 0));
+                    if (i % 2 === 0 || sx === 1) chestParts.push(mcone(0.025, 0.18, bloodCol, sx * w * 0.14, y, 0.22, Math.PI / 2, 0, sx * 0.45));   // costillas rotas sobresaliendo
                 }
             }
-            for (let i = 0; i < 6; i++) chestParts.push(mcone(0.04, 0.22, 'bone', 0, 0.12 + i * 0.15, -0.17, -1.9, 0, 0));
+            for (let i = 0; i < 6; i++) chestParts.push(mcone(0.045, 0.28 + (i % 2) * 0.08, 'bone', 0, 0.12 + i * 0.15, -0.18, -1.95, 0, 0));
             const chest = seg(torso, mat, chestParts, 0, 0.84, 0);
             rig.chest = chest;
-            const core = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 6), rig.eyeMat);   // núcleo que brilla entre las costillas
+            const core = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), rig.eyeMat);   // núcleo palpitante entre costillas
             core.position.set(0, 0.5, 0.15);
             chest.add(core);
             const coreGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-            coreGlow.scale.set(0.9, 0.9, 1);
+            coreGlow.scale.set(1.1, 1.1, 1);
             coreGlow.position.set(0, 0.5, 0.24);
             chest.add(coreGlow);
             rig.coreGlow = coreGlow;
 
-            // Cuello largo y cabeza: cráneo alargado, cuencas huecas, colmillos y cornamenta asimétrica (una asta rota)
+            // Cuello largo y cabeza: cráneo agrietado, ceño amenazante, cuencas profundas, colmillos sangrientos y cornamenta retorcida
             const neck = seg(chest, mat, [
-                mcyl(0.075, 0.058, 0.56, 'skin', 0, 0.28, 0),
-                mcone(0.03, 0.18, 'bone', 0, 0.15, -0.08, -1.9, 0, 0),
-                mcone(0.03, 0.18, 'bone', 0, 0.35, -0.08, -1.9, 0, 0)
+                mcyl(0.075, 0.056, 0.60, 'skin', 0, 0.30, 0),
+                mcyl(0.032, 0.028, 0.56, bloodCol, 0, 0.30, 0.05),
+                mcone(0.035, 0.22, 'bone', 0, 0.16, -0.09, -1.9, 0, 0),
+                mcone(0.035, 0.22, 'bone', 0, 0.38, -0.09, -1.9, 0, 0)
             ], 0, 0.98, 0.02);
             rig.neck = neck;
             const headParts = [
-                mbox(0.34, 0.44, 0.46, 'skin', 0, 0, 0.04),
-                mbox(0.2, 0.15, 0.36, 'skin', 0, -0.13, 0.3),
-                mbox(0.4, 0.07, 0.16, 'bone', 0, 0.18, 0.2),
-                mbox(0.3, 0.22, 0.05, 'bone', 0, 0.2, 0.26, -0.35, 0, 0),
-                mbox(0.14, 0.1, 0.06, 'dark', 0.095, 0.04, 0.22),
-                mbox(0.14, 0.1, 0.06, 'dark', -0.095, 0.04, 0.22)
+                mbox(0.36, 0.46, 0.48, 'skin', 0, 0, 0.04),
+                mbox(0.22, 0.16, 0.40, 'bone', 0, -0.13, 0.31),           // hocico óseo pálido para destacar el cráneo en la oscuridad
+                mbox(0.42, 0.08, 0.18, 'bone', 0, 0.19, 0.20),
+                mbox(0.32, 0.24, 0.05, 'bone', 0, 0.20, 0.27, -0.35, 0, 0),
+                mbox(0.16, 0.12, 0.07, 'dark', 0.095, 0.04, 0.22),        // cuencas más hondas y anchas
+                mbox(0.16, 0.12, 0.07, 'dark', -0.095, 0.04, 0.22),
+                mbox(0.06, 0.09, 0.05, 'dark', 0, -0.06, 0.49),           // fosa nasal hueca
+                mbox(0.16, 0.04, 0.08, 'bone', 0.10, 0.11, 0.25, 0.2, 0, 0.22),   // arcos superciliares fruncidos
+                mbox(0.16, 0.04, 0.08, 'bone', -0.10, 0.11, 0.25, 0.2, 0, -0.22)
             ];
             for (const sx of [-1, 1]) {
-                headParts.push(mcone(0.03, 0.22, 'bone', sx * 0.2, -0.06, 0.12, 0, 0, -sx * 1.35));
-                headParts.push(mcone(0.025, 0.18, 'bone', sx * 0.19, -0.16, 0.2, 0, 0, -sx * 1.0));
+                headParts.push(mcone(0.034, 0.26, 'bone', sx * 0.21, -0.05, 0.12, 0, 0, -sx * 1.35));
+                headParts.push(mcone(0.028, 0.22, 'bone', sx * 0.20, -0.16, 0.20, 0, 0, -sx * 1.0));
+                headParts.push(mcone(0.022, 0.16, bloodCol, sx * 0.085, -0.24, 0.46, Math.PI, 0, 0));   // colmillos largos ensangrentados
             }
-            for (let i = -3; i <= 3; i++) headParts.push(mcone(0.014, 0.11 + (i % 2 ? 0 : 0.04), 'bone', i * 0.032, -0.22, 0.44, Math.PI, 0, 0));
-            const chain = (s, pts, r) => {   // astas: segmentos encadenados que adelgazan
+            for (let i = -3; i <= 3; i++) headParts.push(mcone(0.015, 0.13 + (i % 2 ? 0 : 0.05), i % 2 ? 'bone' : bloodCol, i * 0.032, -0.22, 0.46, Math.PI, 0, 0));
+            const chain = (s, pts, r) => {   // astas: segmentos encadenados más altos y afilados
                 for (let i = 0; i < pts.length - 1; i++) {
                     const a = pts[i], b = pts[i + 1], k = 1 - i / pts.length * 0.65;
                     headParts.push(mlimb([s * a[0], a[1], a[2]], [s * b[0], b[1], b[2]], r * k, r * (k - 0.15), 'bone'));
                 }
             };
-            chain(-1, [[0.13, 0.18, -0.02], [0.2, 0.52, -0.07], [0.33, 0.86, -0.02], [0.3, 1.25, 0.1]], 0.034);
-            chain(-1, [[0.2, 0.52, -0.07], [0.42, 0.68, 0.2]], 0.02);
-            chain(-1, [[0.33, 0.86, -0.02], [0.56, 1.02, -0.05]], 0.02);
-            chain(-1, [[0.33, 0.86, -0.02], [0.18, 1.1, 0.3]], 0.018);
-            chain(-1, [[0.3, 1.25, 0.1], [0.5, 1.56, 0.2]], 0.016);
-            chain(1, [[0.13, 0.18, -0.02], [0.21, 0.5, -0.06], [0.3, 0.74, -0.02]], 0.034);   // la derecha, rota
-            chain(1, [[0.21, 0.5, -0.06], [0.4, 0.62, 0.18]], 0.02);
-            const head = seg(neck, mat, headParts, 0, 0.58, 0.06);
+            chain(-1, [[0.13, 0.18, -0.02], [0.22, 0.56, -0.08], [0.38, 0.94, -0.03], [0.33, 1.38, 0.11], [0.46, 1.72, 0.19]], 0.036);
+            chain(-1, [[0.22, 0.56, -0.08], [0.46, 0.72, 0.24]], 0.022);
+            chain(-1, [[0.38, 0.94, -0.03], [0.64, 1.12, -0.06]], 0.022);
+            chain(-1, [[0.38, 0.94, -0.03], [0.19, 1.18, 0.34]], 0.019);
+            chain(-1, [[0.33, 1.38, 0.11], [0.56, 1.66, 0.24]], 0.017);
+            chain(1, [[0.13, 0.18, -0.02], [0.22, 0.52, -0.06], [0.32, 0.78, -0.02]], 0.036);   // la derecha, astillada y rota
+            chain(1, [[0.22, 0.52, -0.06], [0.44, 0.66, 0.20]], 0.022);
+            headParts.push(mcone(0.026, 0.16, 'bone', 0.32, 0.84, -0.02, 0.1, 0, -0.3));
+            const head = seg(neck, mat, headParts, 0, 0.60, 0.06);
             rig.head = head;
 
-            // Ojos y interior de la boca (material sin luz, emisivo falso) + resplandor
-            const eyeParts = [msph(0.045, 'dark', 0.095, 0.045, 0.235), msph(0.045, 'dark', -0.095, 0.045, 0.235),
-                              mbox(0.14, 0.012, 0.24, 'dark', 0, -0.2, 0.32)];
+            // Ojos (pupila diminuta brillante dentro de cuenca negra) e interior sangriento de la boca + resplandor
+            const eyeParts = [msph(0.032, 'dark', 0.095, 0.045, 0.242), msph(0.032, 'dark', -0.095, 0.045, 0.242),
+                              mbox(0.15, 0.016, 0.26, 'dark', 0, -0.2, 0.33)];
             head.add(mergedMesh(rig.eyeMat, eyeParts));
             rig.eyeGlows = [];
             for (const sx of [-1, 1]) {
                 const glow = new THREE.Sprite(new THREE.SpriteMaterial({
                     map: glowTexture, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
                 }));
-                glow.scale.set(0.6, 0.6, 1);
-                glow.position.set(sx * 0.095, 0.045, 0.28);
+                glow.scale.set(0.68, 0.68, 1);
+                glow.position.set(sx * 0.095, 0.045, 0.285);
                 head.add(glow);
                 rig.eyeGlows.push(glow);
             }
 
             const jawParts = [
-                mbox(0.2, 0.06, 0.36, 'skin', 0, -0.03, 0.17),
-                mcone(0.03, 0.18, 'bone', 0, -0.07, 0.35, 2.7, 0, 0),
-                mbox(0.1, 0.014, 0.26, 'flesh', 0, 0.006, 0.17)
+                mbox(0.21, 0.065, 0.38, 'bone', 0, -0.03, 0.18),
+                mcone(0.034, 0.20, 'bone', 0, -0.07, 0.37, 2.7, 0, 0),
+                mbox(0.11, 0.018, 0.28, bloodCol, 0, 0.008, 0.18)
             ];
-            for (let i = -2; i <= 2; i++) jawParts.push(mcone(0.014, 0.1, 'bone', i * 0.036, 0.03, 0.32));
-            for (const sx of [-1, 1]) jawParts.push(mcone(0.02, 0.2, 'bone', sx * 0.075, 0.05, 0.33));
+            for (let i = -2; i <= 2; i++) jawParts.push(mcone(0.015, 0.12, i % 2 ? 'bone' : bloodCol, i * 0.036, 0.035, 0.34));
+            for (const sx of [-1, 1]) jawParts.push(mcone(0.022, 0.23, bloodCol, sx * 0.078, 0.055, 0.35));
             const jaw = seg(head, mat, jawParts, 0, -0.2, 0.12);
             rig.jaw = jaw;
 
-            // Brazos larguísimos: hombro, codo con espolón y muñeca con garras
+            // Brazos larguísimos: hombro con espolones, codo afilado y garras de tres falanges manchadas de sangre
             const makeArm = (sx) => {
                 const shoulder = seg(chest, mat, [
-                    msph(0.1, 'skin', 0, 0, 0),
-                    mcyl(0.07, 0.052, 1.25, 'skin', 0, -0.625, 0),
-                    mcone(0.03, 0.2, 'bone', sx * 0.07, -0.1, -0.05, 0, 0, -sx * 1.2)
-                ], sx * 0.55, 0.9, 0);
+                    msph(0.11, 'skin', 0, 0, 0),
+                    mcyl(0.072, 0.052, 1.28, 'skin', 0, -0.64, 0),
+                    mcone(0.035, 0.24, 'bone', sx * 0.08, -0.1, -0.05, 0, 0, -sx * 1.2),
+                    mcone(0.026, 0.2, 'bone', sx * 0.06, -0.55, -0.04, 0, 0, -sx * 1.4)
+                ], sx * 0.57, 0.9, 0);
                 const elbow = seg(shoulder, mat, [
-                    msph(0.06, 'skin', 0, 0, 0),
-                    mcyl(0.052, 0.03, 1.45, 'skin', 0, -0.725, 0),
-                    mcone(0.035, 0.34, 'bone', 0, 0.02, -0.1, -Math.PI / 2 - 0.2, 0, 0)
-                ], 0, -1.25, 0);
-                const handParts = [mbox(0.13, 0.16, 0.05, 'skin', 0, -0.08, 0)];
+                    msph(0.065, 'skin', 0, 0, 0),
+                    mcyl(0.052, 0.03, 1.48, 'skin', 0, -0.74, 0),
+                    mcone(0.04, 0.40, 'bone', 0, 0.02, -0.11, -Math.PI / 2 - 0.2, 0, 0)
+                ], 0, -1.28, 0);
+                const handParts = [mbox(0.14, 0.17, 0.05, 'skin', 0, -0.08, 0)];
                 for (let f = 0; f < 4; f++) {
-                    const fx = (f - 1.5) * 0.04;
+                    const fx = (f - 1.5) * 0.042;
                     handParts.push(mlimb([fx, -0.14, 0], [fx * 1.5, -0.38, 0.05], 0.018, 0.013, 'bone'));
-                    handParts.push(mlimb([fx * 1.5, -0.38, 0.05], [fx * 2.0, -0.62, 0.17], 0.013, 0.006, 'bone'));
+                    handParts.push(mlimb([fx * 1.5, -0.38, 0.05], [fx * 2.0, -0.64, 0.18], 0.013, 0.007, 'bone'));
+                    handParts.push(mlimb([fx * 2.0, -0.64, 0.18], [fx * 2.25, -0.82, 0.30], 0.007, 0.002, bloodCol));
                 }
-                handParts.push(mlimb([-sx * 0.06, -0.1, 0.02], [-sx * 0.14, -0.3, 0.1], 0.02, 0.008, 'bone'));
-                const wrist = seg(elbow, mat, handParts, 0, -1.45, 0);
+                handParts.push(mlimb([-sx * 0.06, -0.1, 0.02], [-sx * 0.15, -0.34, 0.13], 0.02, 0.006, bloodCol));
+                const wrist = seg(elbow, mat, handParts, 0, -1.48, 0);
                 shoulder.rotation.z = sx * 0.12;
                 return { shoulder, elbow, wrist };
             };
             rig.armL = makeArm(-1);
             rig.armR = makeArm(1);
 
-            // Harapos: faldón de la cintura (4) y capa raída que cuelga de los hombros (3), cada grupo en una sola malla
+            // Harapos: faldón de la cintura (4) y capa raída que cuelga de los hombros (5), cada grupo en una sola malla
             const clothSeg = (parent, strips, x, y, z, ry) => {
                 const h = new THREE.Group();
                 h.position.set(x, y, z);
@@ -4359,14 +4391,14 @@
             rig.tatters = [];
             for (let i = 0; i < 4; i++) {
                 const a = i / 4 * Math.PI * 2 + 0.4;
-                rig.tatters.push(clothSeg(hip, [[-0.1, 0.16, 0.6 + (i % 2) * 0.2, 0.05], [0.1, 0.14, 0.82 - (i % 2) * 0.25, -0.06]],
+                rig.tatters.push(clothSeg(hip, [[-0.1, 0.16, 0.68 + (i % 2) * 0.22, 0.05], [0.1, 0.14, 0.88 - (i % 2) * 0.25, -0.06]],
                     Math.sin(a) * 0.22, -0.04, Math.cos(a) * 0.22, a));
             }
-            for (let i = 0; i < 3; i++) rig.tatters.push(clothSeg(chest, [[0, 0.22, 1.1 + i * 0.25]], (i - 1) * 0.26, 0.88, -0.22, Math.PI));
-            // Mejora: harapos que cuelgan del cráneo como pelo podrido y un brillo rojo dentro de la boca cuando la abre
-            rig.tatters.push(clothSeg(head, [[-0.13, 0.09, 0.85, 0.12], [-0.04, 0.1, 1.25, 0.03], [0.05, 0.1, 1.05, -0.04], [0.13, 0.09, 0.7, -0.12]], 0, 0.16, -0.2, Math.PI));
-            const mouthGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color: 0xff3010, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
-            mouthGlow.scale.set(0.55, 0.4, 1); mouthGlow.position.set(0, -0.14, 0.26);
+            for (let i = 0; i < 5; i++) rig.tatters.push(clothSeg(chest, [[0, 0.22, 1.15 + (i % 3) * 0.28]], (i - 2) * 0.22, 0.90, -0.22, Math.PI));
+            // Harapos que cuelgan del cráneo como pelo podrido y brillo rojo intenso dentro de la boca al abrirla
+            rig.tatters.push(clothSeg(head, [[-0.14, 0.09, 0.95, 0.14], [-0.04, 0.1, 1.35, 0.03], [0.05, 0.1, 1.15, -0.04], [0.14, 0.09, 0.8, -0.14]], 0, 0.16, -0.2, Math.PI));
+            const mouthGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color: 0xff2208, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
+            mouthGlow.scale.set(0.65, 0.48, 1); mouthGlow.position.set(0, -0.14, 0.26);
             head.add(mouthGlow); rig.mouthGlow = mouthGlow;
 
             // Cola de vértebras: seis tramos que cuelgan de la cadera, con espinas, y rematan en una punta de hueso. Ondea con retraso al andar.
@@ -6650,17 +6682,28 @@
             const sway = (mode === 'stalk' || mode === 'freeze') ? Math.sin(time * 0.9) * 0.1 : 0;
             r.head.rotation.y = s.yaw * 0.4 + sway;
             r.head.rotation.x = s.pitch * 0.9 + (mode === 'chase' ? 0.12 : 0);
-            s.tilt = damp(s.tilt, mode === 'peek' ? -(m.peekSide || 1) * 0.4 : (mode === 'freeze' ? 0.18 : 0), 5, delta);
-            r.head.rotation.z = s.tilt + Math.sin(time * 9) * 0.05 * (mode === 'stun' ? 3 : 1) + (mode === 'stalk' ? Math.sin(time * 1.2) * 0.14 : 0);
-            r.jaw.rotation.x = 0.15 + (Math.sin(time * (mode === 'chase' ? 14 : 5)) * 0.5 + 0.5) * s.jaw;
+            s.tilt = damp(s.tilt, mode === 'peek' ? -(m.peekSide || 1) * 0.48 : (mode === 'freeze' ? 0.28 : 0), 5, delta);
+            // Crujido antinatural del cuello: cuando te observa o acecha, tuerce el cráneo en ángulos imposibles
+            r.snapT = (r.snapT === undefined ? 3.5 : r.snapT) - delta;
+            r.snapHold = Math.max(0, (r.snapHold || 0) - delta);
+            if (r.snapT <= 0 && (mode === 'freeze' || mode === 'stalk' || mode === 'peek')) {
+                r.snapT = 3.2 + Math.random() * 4.5;
+                r.snapHold = 0.45 + Math.random() * 0.65;
+                r.snapAng = (Math.random() < 0.5 ? -1 : 1) * (0.58 + Math.random() * 0.48);
+                if (m === monster && d < 32 && started && !scare.active) playSound('neckCrack', THREE.MathUtils.clamp(1.1 - d / 32, 0.2, 0.9));
+            }
+            s.snap = damp(s.snap || 0, r.snapHold > 0 ? (r.snapAng || 0) : 0, r.snapHold > 0 ? 28 : 9, delta);
+            r.head.rotation.z = s.tilt + s.snap + Math.sin(time * 9) * 0.05 * (mode === 'stun' ? 3 : 1) + (mode === 'stalk' ? Math.sin(time * 1.2) * 0.16 : 0);
+            const jawOpen = mode === 'chase' || mode === 'crawl' || mode === 'roar' || mode === 'reveal';
+            r.jaw.rotation.x = (jawOpen ? 0.34 : 0.16) + (Math.sin(time * (mode === 'chase' || mode === 'crawl' ? 16 : 4.5)) * 0.5 + 0.5) * s.jaw;
             // Tics: sacudidas bruscas de cabeza al azar, y gestos propios de cada pose
             r.twitchT = (r.twitchT === undefined ? 2 : r.twitchT) - delta;
-            if (r.twitchT <= 0) { r.twitchT = 1.5 + Math.random() * 3.5; r.twitch = (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.4); }
-            r.twitch = (r.twitch || 0) * Math.exp(-delta * 7);
-            if (mode !== 'stun' && mode !== 'roar') { r.head.rotation.y += r.twitch; r.head.rotation.z += r.twitch * 0.5; }
+            if (r.twitchT <= 0) { r.twitchT = 1.1 + Math.random() * 2.6; r.twitch = (Math.random() < 0.5 ? -1 : 1) * (0.32 + Math.random() * 0.48); }
+            r.twitch = (r.twitch || 0) * Math.exp(-delta * 8);
+            if (mode !== 'stun' && mode !== 'roar') { r.head.rotation.y += r.twitch; r.head.rotation.z += r.twitch * 0.55; }
             if (mode === 'scan') r.head.rotation.y += Math.sin(time * 1.7) * 0.95;
-            if (mode === 'sniff') { r.head.rotation.x += 0.4 + Math.sin(time * 13) * 0.08; r.jaw.rotation.x = 0.1 + Math.abs(Math.sin(time * 13)) * 0.18; }
-            if (mode === 'roar') { r.head.rotation.x -= 0.5; r.head.rotation.z += Math.sin(time * 40) * 0.05; }
+            if (mode === 'sniff') { r.head.rotation.x += 0.4 + Math.sin(time * 13) * 0.08; r.jaw.rotation.x = 0.1 + Math.abs(Math.sin(time * 13)) * 0.22; }
+            if (mode === 'roar') { r.head.rotation.x -= 0.55; r.head.rotation.z += Math.sin(time * 46) * 0.07; }
 
             // Brazos: balanceo contrario a las piernas, con deriva lenta y dedos que se crispan
             const swingA = s.swing * amp;
@@ -6692,15 +6735,15 @@
                 }
             }
             // El pecho respira (jadea al perseguir y rugir); el núcleo late con él
-            const heave = (mode === 'chase' || mode === 'roar') ? 2.6 : 1;
-            r.chest.scale.setScalar(1 + (Math.sin(time * (heave > 1 ? 9 : 2.1)) * 0.5 + 0.5) * 0.018 * heave);
+            const heave = (mode === 'chase' || mode === 'roar') ? 2.8 : 1;
+            r.chest.scale.setScalar(1 + (Math.sin(time * (heave > 1 ? 9 : 2.1)) * 0.5 + 0.5) * 0.02 * heave);
 
-            // Ojos y núcleo que parpadean como una luz defectuosa; el núcleo late
-            const flick = (mode === 'stun' || Math.random() < 0.04) ? 0.3 : 1;
-            const eb = Math.max(r.eyeBoost || 0, mode === 'chase' ? 0.5 : 0);   // los ojos se encienden cuando le sostienes la mirada y al perseguirte
-            for (const g of r.eyeGlows) { g.material.opacity = flick; g.scale.setScalar(0.6 + eb * 0.9); }
-            r.coreGlow.material.opacity = (0.55 + Math.sin(time * 4.2) * 0.3) * (mode === 'stun' ? 0.4 : 1);
-            if (r.mouthGlow) r.mouthGlow.material.opacity = THREE.MathUtils.clamp((r.jaw.rotation.x - 0.5) * 0.8, 0, 0.75) * (m === monster ? 1 : 0.35);
+            // Ojos y núcleo que parpadean como brasas enfermas; los ojos arden cuando te fija la mirada
+            const flick = (mode === 'stun' || Math.random() < 0.06) ? 0.22 : (0.85 + Math.sin(time * 17) * 0.15);
+            const eb = Math.max(r.eyeBoost || 0, mode === 'chase' || mode === 'crawl' || mode === 'reveal' ? 0.65 : 0);
+            for (const g of r.eyeGlows) { g.material.opacity = flick; g.scale.setScalar(0.68 + eb * 1.05); }
+            r.coreGlow.material.opacity = (0.62 + Math.sin(time * 4.5) * 0.32) * (mode === 'stun' ? 0.35 : 1);
+            if (r.mouthGlow) r.mouthGlow.material.opacity = THREE.MathUtils.clamp((r.jaw.rotation.x - 0.45) * 0.9, 0, 0.85) * (m === monster ? 1 : 0.35);
         }
 
         // --- IA ---
@@ -6713,7 +6756,7 @@
         let lungeTimer = 4, lungeLeft = 0;
         let monsterStepTimer = 0, growlTimer = 8, bangTimer = 0;
         let coverTarget = null, coverCD = 0, seenTimer = 0, peekTimer = 0, revealTimer = 0;
-        let roarT = 0, idleCD = 8, scratchCD = 12;
+        let roarT = 0, idleCD = 8, scratchCD = 12, bellowTimer = 11, erranteAshT = 0;
         const idleAct = { mode: '', t: 0 };   // pausas del acecho: olfatear o mirar alrededor
         const scratch = { phase: '', tgt: null, nx: 0, nz: 0, spot: null, t: 0, hits: 0 };
         let ambushCD = 24, ambushWarn = 0, nightClock = 0, losT = 0, losCache = true, orbitT = 3;
@@ -6722,7 +6765,7 @@
         function resetMonsterAI() {
             coverTarget = null; coverCD = 0; seenTimer = 0; peekTimer = 0; revealTimer = 0;
             ambushWarn = 0; ambushCD = finalNight ? 16 : 24; nightClock = 0; losT = 0; losCache = true; orbitT = 3;
-            stunHits = 0; lungeLeft = 0; lungeTimer = 4; sidestepTimer = 0; stuckTimer = 0;
+            stunHits = 0; lungeLeft = 0; lungeTimer = 4; sidestepTimer = 0; stuckTimer = 0; bellowTimer = 11; erranteAshT = 0;
             resetSiege(); siege.last = ''; siege.lastWin = -1; siege.warned = false; siege.held = false;
             roarT = 0; idleCD = 8; scratchCD = 12; idleAct.t = 0; scratch.phase = '';
         }
@@ -7452,10 +7495,11 @@
                 if (distP > 9 && !playerInside && monsterState !== 'chase') {   // antes de lanzarse, se detiene y ruge (aviso para el jugador)
                     monsterState = 'roar'; roarT = 0.9;
                     monster.rotation.y = Math.atan2(px - monster.position.x, pz - monster.position.z);
-                    playSound('growl', 1);
+                    playSound('growl', 1.15);
+                    playSound('distantBellow', THREE.MathUtils.clamp(1.15 - distP / 40, 0.25, 0.95));
                 } else {
                     monsterState = 'chase'; monsterStateTimer = 99;
-                    playSound('growl', THREE.MathUtils.clamp(1.3 - distP / 30, 0.3, 1));
+                    playSound('growl', THREE.MathUtils.clamp(1.35 - distP / 30, 0.35, 1.1));
                 }
             };
 
@@ -7463,6 +7507,13 @@
             losT -= delta;
             if (losT <= 0) { losT = 0.25; losCache = distP < 42 && hasLOS(mx, mz, px, pz); }
             const seen = distP < 38 && losCache && playerLooksAt(mx, mz, 0.74);
+
+            // Presencia tenebrosa: ceniza roja y oscura desprendiéndose de su pecho hueco cuando acecha cerca
+            erranteAshT -= delta;
+            if (erranteAshT <= 0 && distP < 26) {
+                erranteAshT = monsterState === 'chase' ? 0.14 : 0.28;
+                spawnBurst(mx, 2.25, mz, Math.random() < 0.45 ? 0x9b0d06 : 0x160b0b, 1, 0.55, 0.85);
+            }
 
             // --- Emboscada: un susurro y un latido avisan; 1.5 s después reaparece a tus espaldas y ruge antes de cargar ---
             ambushCD -= delta;
@@ -7473,7 +7524,7 @@
                     if (!checkSafeZone() && !nearFire(px, pz, 9) && tryAmbush(px, pz)) {
                         monsterState = 'reveal'; revealTimer = 0.9; coverTarget = null;
                         monster.rotation.y = Math.atan2(px - monster.position.x, pz - monster.position.z);
-                        playSound('growl', 1); glitchPulse = Math.max(glitchPulse, 0.7);
+                        playSound('growl', 1.15); playSound('distantBellow', 0.9); glitchPulse = Math.max(glitchPulse, 0.85);
                         animateMonster(delta, 0, 'reveal');
                         return;
                     }
@@ -7533,8 +7584,14 @@
 
             growlTimer -= delta;
             if (growlTimer <= 0) {
-                growlTimer = 7 + Math.random() * 6;
-                playSound('growl', THREE.MathUtils.clamp(1.2 - distP / 35, 0.15, 1));
+                growlTimer = 6.5 + Math.random() * 5.5;
+                playSound('growl', THREE.MathUtils.clamp(1.25 - distP / 35, 0.18, 1.05));
+            }
+            bellowTimer -= delta;
+            if (bellowTimer <= 0) {
+                bellowTimer = 14 + Math.random() * 12;
+                if (distP > 12) playSound('distantBellow', THREE.MathUtils.clamp(1.0 - distP / 52, 0.22, 0.85));
+                else playSound('whisper', 0.75);
             }
 
             // Puerta bloqueada y jugador dentro: no puede romperla; asedia la cabaña (ver updateSiege)
@@ -7668,8 +7725,10 @@
             else if (frozen) mode = 'freeze';
             else if (monsterState === 'stalk' && idleAct.t > 0) mode = idleAct.mode;
             else if (monsterState === 'chase') mode = lungeLeft > 0 ? 'crawl' : 'chase';   // en la embestida corre a cuatro patas
+            if (monster.rig) monster.rig.eyeBoost = seen ? Math.min(1, (seenTimer / 1.8) * 0.85) : 0;
             animateMonster(delta, moved, mode);
-            monster.aura.intensity = lit ? 0.8 : (mode === 'freeze' || mode === 'peek' ? 0.7 : 1.6 + Math.sin(time * 6) * 0.5);
+            monster.aura.intensity = lit ? 0.85 : (mode === 'freeze' || mode === 'peek' ? 0.95 : 1.75 + Math.sin(time * 6) * 0.55);
+            if (seen && distP < 24 && !playerInside) glitchPulse = Math.max(glitchPulse, 0.18 + Math.max(0, 1 - distP / 24) * 0.25);
 
             // Pisadas pesadas
             if (moved > 0) {
@@ -8840,10 +8899,14 @@
         };
         for (const ev of ['keydown', 'mousedown', 'pointerdown', 'wheel']) document.addEventListener(ev, _sleepBlock, true);
 
-        // --- JUMPSCARE: la criatura te salta a la cara (cámara fija, cabeza enorme, mandíbula abierta, destellos con una cara espantosa) y luego aparece la pantalla de derrota ---
-        const scare = { active: false, t: 0, title: '', desc: '', dirX: 0, dirZ: 1, yawTo: 0, yaw0: 0, pitch0: 0, cam: new THREE.Vector3(), flashOn: false };
+        // --- JUMPSCARE: la criatura te salta a la cara (cámara fija, cabeza enorme, destellos con imágenes de terror IA) y luego aparece la pantalla de derrota ---
+        const scare = { active: false, t: 0, title: '', desc: '', dirX: 0, dirZ: 1, yawTo: 0, yaw0: 0, pitch0: 0, cam: new THREE.Vector3(), flashOn: false, useAI: false };
         const scareFace = $('scare-face');
-        (function drawScareFace() {   // cara procedural (siempre la misma): cráneo agrietado, cuencas huecas y una boca llena de dientes
+        const scareImgA = $('scare-img-a');
+        const scareImgB = $('scare-img-b');
+        const scareImgV = $('scare-img-v');
+        const scareScan = $('scare-scanlines');
+        (function drawScareFace() {   // respaldo procedural por si alguna imagen aún no hubiera terminado de cargar
             const c = scareFace; c.width = c.height = 512;
             const g = c.getContext('2d');
             let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -8889,58 +8952,92 @@
             S.cam.copy(camera.position); S.yaw0 = yaw; S.pitch0 = pitch;
             M.visible = true; M.body.visible = true;
             M.rotation.y = Math.atan2(-S.dirX, -S.dirZ);   // de cara al jugador
-            scareFace.style.filter = M === monster ? '' : 'hue-rotate(95deg) saturate(1.3)';   // la cara del Vigía, con ojos verdes
+            const isErrante = M === monster;
+            S.useAI = isErrante
+                ? (scareImgA.complete && scareImgA.naturalWidth > 0) || (scareImgB.complete && scareImgB.naturalWidth > 0)
+                : (scareImgV.complete && scareImgV.naturalWidth > 0);
+            scareFace.style.filter = isErrante ? '' : 'hue-rotate(95deg) saturate(1.3)';   // respaldo si no hubiera imagen IA
+            scareImgA.style.opacity = 0; scareImgB.style.opacity = 0; scareImgV.style.opacity = 0; scareScan.style.opacity = 0;
             playSound('jumpscare');
         }
         const SC_CUT = 0.12, SC_HIT = 0.42, SC_FADE = 1.55, SC_END = 1.95;
-        const SC_FLASHES = [[0.42, 0.52], [0.64, 0.72], [0.88, 0.95], [1.14, 1.21]];   // la cara espantosa a pantalla completa
+        const SC_FLASHES = [[0.42, 0.50], [0.56, 0.65], [0.72, 0.81], [0.90, 1.00], [1.12, 1.24]];   // ráfagas de imágenes espantosas de IA a pantalla completa
         const _hw = new THREE.Vector3(), _fw = new THREE.Vector3();
         function updateScare(delta) {
             const S = scare; S.t += delta;
             const t = S.t, kLunge = t < SC_CUT ? 0 : Math.min(1, (t - SC_CUT) / (SC_HIT - SC_CUT)), hit = t >= SC_HIT;
             // Cámara: se gira de golpe hacia la criatura, tiembla y se inclina; el ángulo se abre con la embestida
-            const kTurn = smooth01(t / 0.1), amp = hit ? 0.05 : 0.02 * kLunge;
+            const kTurn = smooth01(t / 0.1), amp = hit ? 0.055 : 0.02 * kLunge;
             const rnd = () => (Math.random() - 0.5) * 2;
             camera.position.set(S.cam.x + rnd() * amp, S.cam.y + rnd() * amp, S.cam.z + rnd() * amp);
             camera.rotation.set(THREE.MathUtils.lerp(S.pitch0, 0.1, kTurn) + rnd() * amp * 0.7,
                                 S.yaw0 + wrapPi(S.yawTo - S.yaw0) * kTurn + rnd() * amp * 0.7,
-                                0.14 * smooth01((t - SC_CUT) / 0.3) + (hit ? Math.sin(t * 40) * 0.05 : 0), 'YXZ');
-            const fov = adaptFov(75 + 13 * kLunge + (hit ? Math.sin(t * 33) * 3 : 0));
+                                0.14 * smooth01((t - SC_CUT) / 0.3) + (hit ? Math.sin(t * 42) * 0.06 : 0), 'YXZ');
+            const fov = adaptFov(75 + 14 * kLunge + (hit ? Math.sin(t * 35) * 3.5 : 0));
             if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = fov; camera.updateProjectionMatrix(); }
             // Criatura: la cabeza viene desde lejos y se clava a menos de un metro de la cara, enorme y con la boca desencajada
             const M = S.m || monster, r = M.rig;
             r.eyeBoost = 1;
             animateMonster(delta, 0, 'reveal', M);
-            const dist = t < SC_CUT ? 3.6 : THREE.MathUtils.lerp(3.6, 0.95, kLunge * kLunge * kLunge);
-            const jx = hit ? rnd() * 0.04 : 0, jy = hit ? rnd() * 0.04 : 0;
-            r.head.rotation.set(0.05 + (hit ? rnd() * 0.12 : 0), hit ? rnd() * 0.25 : 0, hit ? rnd() * 0.4 : 0);
-            r.jaw.rotation.x = t < SC_CUT ? 0.3 : 1.25 + Math.sin(t * 55) * 0.16;
-            r.mouthGlow.material.opacity = 0.9;
-            r.head.scale.setScalar(1 + 0.4 * smooth01(kLunge) + (hit ? Math.sin(t * 30) * 0.05 : 0));
+            const dist = t < SC_CUT ? 3.6 : THREE.MathUtils.lerp(3.6, 0.92, kLunge * kLunge * kLunge);
+            const jx = hit ? rnd() * 0.045 : 0, jy = hit ? rnd() * 0.045 : 0;
+            r.head.rotation.set(0.05 + (hit ? rnd() * 0.14 : 0), hit ? rnd() * 0.28 : 0, hit ? rnd() * 0.45 : 0);
+            r.jaw.rotation.x = t < SC_CUT ? 0.3 : 1.32 + Math.sin(t * 58) * 0.18;
+            r.mouthGlow.material.opacity = 0.95;
+            r.head.scale.setScalar(1 + 0.44 * smooth01(kLunge) + (hit ? Math.sin(t * 32) * 0.06 : 0));
             M.updateMatrixWorld(true);
             r.head.getWorldPosition(_hw);
             M.position.x += S.cam.x + S.dirX * dist + jx - _hw.x;
             M.position.z += S.cam.z + S.dirZ * dist - _hw.z;
             M.position.y += S.cam.y + 0.1 + jy - _hw.y;
-            M.aura.intensity = 3.5 + Math.random() * 2.5;
+            M.aura.intensity = 4.0 + Math.random() * 2.5;
             // Linterna: sigue la mirada y parpadea con el golpe
             camera.getWorldDirection(_fw);
             flashlight.position.copy(camera.position); flashlight.target.position.copy(camera.position).add(_fw);
             flashlight.intensity = flashlightOn ? FLASHLIGHT_INTENSITY * (hit && Math.random() < 0.4 ? 0.15 : 1) : 0;
-            // Capas: corte a negro al empezar, destello blanco al impacto, cara espantosa a destellos, tinte rojo y fundido final
+            // Capas: corte a negro al empezar, destello blanco al impacto, destellos alternos con imágenes IA, tinte rojo y fundido final
             let black = t < 0.06 ? 1 : (t < SC_CUT ? 1 - (t - 0.06) / (SC_CUT - 0.06) : 0);
             if (t > SC_FADE) black = Math.max(black, smooth01((t - SC_FADE) / (SC_END - SC_FADE)));
             sleepEls.ov.style.opacity = black.toFixed(2);
             const whiteNow = t >= SC_HIT - 0.03 && t < SC_HIT + 0.04;
             if (whiteNow !== S.flashOn) { S.flashOn = whiteNow; ui.flash.style.opacity = whiteNow ? '1' : '0'; }
-            let face = 0; for (const [a, b] of SC_FLASHES) if (t >= a && t < b) face = 0.95;
-            scareFace.style.opacity = face;
+            let flashIdx = -1;
+            for (let i = 0; i < SC_FLASHES.length; i++) { const [a, b] = SC_FLASHES[i]; if (t >= a && t < b) { flashIdx = i; break; } }
+            if (S.useAI) {
+                scareFace.style.opacity = 0;
+                if (flashIdx >= 0) {
+                    const isErrante = M === monster;
+                    const activeImg = isErrante
+                        ? ((flashIdx % 2 === 0 && scareImgA.naturalWidth > 0) ? scareImgA : (scareImgB.naturalWidth > 0 ? scareImgB : scareImgA))
+                        : scareImgV;
+                    const zoom = 1.06 + flashIdx * 0.045 + Math.random() * 0.06;
+                    const tx = rnd() * 14, ty = rnd() * 12, rot = rnd() * 3.5;
+                    const xf = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scale(${zoom.toFixed(3)}) rotate(${rot.toFixed(2)}deg)`;
+                    const flt = flashIdx === 2
+                        ? 'contrast(1.65) saturate(1.55) brightness(1.12)'
+                        : (flashIdx === 4 ? 'contrast(1.8) saturate(1.7) brightness(1.2)' : 'contrast(1.38) saturate(1.35)');
+                    scareImgA.style.opacity = activeImg === scareImgA ? 0.96 : 0;
+                    scareImgB.style.opacity = activeImg === scareImgB ? 0.96 : 0;
+                    scareImgV.style.opacity = activeImg === scareImgV ? 0.96 : 0;
+                    activeImg.style.transform = xf;
+                    activeImg.style.filter = flt;
+                    scareScan.style.opacity = 0.72;
+                } else {
+                    scareImgA.style.opacity = 0; scareImgB.style.opacity = 0; scareImgV.style.opacity = 0; scareScan.style.opacity = 0;
+                }
+            } else {
+                scareFace.style.opacity = flashIdx >= 0 ? 0.95 : 0;
+                scareScan.style.opacity = flashIdx >= 0 ? 0.5 : 0;
+            }
             const red = hit ? 0.85 : 0; if (ui.glitch._o !== red) { ui.glitch.style.opacity = red; ui.glitch._o = red; }
             if (t >= SC_END) endScare();
         }
         function resetScare() {
             scare.active = false;
-            scareFace.style.opacity = 0; sleepEls.ov.style.opacity = 0; ui.flash.style.opacity = '0'; ui.glitch.style.opacity = 0; ui.glitch._o = 0;
+            scareFace.style.opacity = 0; scareImgA.style.opacity = 0; scareImgB.style.opacity = 0; scareImgV.style.opacity = 0; scareScan.style.opacity = 0;
+            scareImgA.style.transform = ''; scareImgB.style.transform = ''; scareImgV.style.transform = '';
+            scareImgA.style.filter = ''; scareImgB.style.filter = ''; scareImgV.style.filter = '';
+            sleepEls.ov.style.opacity = 0; ui.flash.style.opacity = '0'; ui.glitch.style.opacity = 0; ui.glitch._o = 0;
             monster.rig.head.scale.setScalar(1); vigia.rig.head.scale.setScalar(1); scareFace.style.filter = '';
             fovCur = 75; fovPunch = 0; camera.fov = adaptFov(75); camera.updateProjectionMatrix();
         }
@@ -11036,11 +11133,23 @@
             else if (player.hunger < HUNGER_LOW && !hungerWarned) { hungerWarned = true; toast('TIENES HAMBRE: ROMPE HOJAS DE ÁRBOLES PARA ENCONTRAR FRUTOS'); }
             if (player.hunger > 45) { hungerWarned = false; starveWarned = false; }
 
-            // Efecto visual: la cordura baja tiñe la pantalla de rojo
+            // Efecto visual: la cordura baja tiñe la pantalla de rojo y la cercanía del Errante oprime la visión
             glitchPulse = Math.max(0, glitchPulse - delta * 2.5);
             const sanityGlitch = (1 - player.sanity / 100) * 0.55;
-            const glitchValue = Math.max(glitchPulse, sanityGlitch).toFixed(2);
+            let erranteDread = 0;
+            if (isNight && monster.body.visible && !inTent && !monsterFreeNight()) {
+                const dm = Math.hypot(monster.position.x - player.position.x, monster.position.z - player.position.z);
+                if (dm < 20) erranteDread = THREE.MathUtils.clamp((1 - dm / 20) * (monsterState === 'chase' ? 0.55 : 0.35), 0, 0.55);
+            }
+            const glitchValue = Math.max(glitchPulse, sanityGlitch, erranteDread * 0.65).toFixed(2);
             if (ui.glitch._o !== glitchValue) { ui.glitch.style.opacity = glitchValue; ui.glitch._o = glitchValue; }
+            const vigLevel = Math.round(erranteDread * 10);
+            if (ui.vignette._lvl !== vigLevel) {
+                ui.vignette._lvl = vigLevel;
+                ui.vignette.style.boxShadow = vigLevel > 0
+                    ? `inset 0 0 ${140 + vigLevel * 14}px rgba(${Math.min(140, vigLevel * 22)}, 0, 0, ${(0.95 + vigLevel * 0.005).toFixed(3)})`
+                    : 'inset 0 0 140px rgba(0, 0, 0, 0.95)';
+            }
 
             if (player.sanity <= 0) {
                 if (player.hunger <= 0) endGame(ui.death, '¡MORISTE DE HAMBRE!', 'Sin nada que comer, el bosque terminó de consumirte. Rompe hojas y hongos para encontrar comida.');
