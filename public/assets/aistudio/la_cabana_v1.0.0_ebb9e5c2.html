@@ -416,6 +416,9 @@
         .gd-in p { margin: 0; } .gd-in ul, .gd-in ol { margin: 0; padding-left: 18px; } .gd-in li { margin: 2px 0; }
         .gd-in small { color: #b4a496; }
         .gd-note { color: #b4a496; font-size: 11.5px; padding: 2px 4px 6px; line-height: 1.4; }
+        .gd-quote { padding: 8px 10px; background: rgba(0,0,0,.28); border-left: 3px solid #d49a6a; border-radius: 0 6px 6px 0; color: #f0e2c8; font-style: italic; line-height: 1.55; }
+        .gd-story-btn { justify-self: start; background: rgba(240,184,168,.12); border: 1px solid rgba(240,184,168,.4); color: #ffd6c6; border-radius: 6px; padding: 4px 10px; font-family: inherit; font-size: 11.5px; cursor: pointer; }
+        .gd-story-btn:hover { background: rgba(240,184,168,.24); }
         #guide-foot { margin-top: 8px; color: #8a7a6e; font-size: 10px; flex: 0 0 auto; }
         #craft-foot { margin-top: 8px; display: grid; gap: 5px; flex: 0 0 auto; }
         #craft-foot small { color: #8a7a5a; font-size: 10px; }
@@ -3857,6 +3860,7 @@
 
         // --- Páginas del diario (se muestra solo la siguiente) ---
         let nextPage = 0, finalNight = false, finalChase = false;
+        const collectedNotes = new Set();
         const pageObj = (function () {
             const group = new THREE.Group();
             const page = new THREE.Mesh(
@@ -5040,8 +5044,9 @@
         // Se abre con E sobre el escritorio de la cabaña, con la tecla G o con el botón 📖 del crafteo.
         // ============================================================
         const guidePanel = $('guide-panel');
-        let guideOpen = false, guideTab = 'mech', guideMat = 'where', guideEnc = 'items', guideQuery = '';
-        const GUIDE_TABS = [['mech', '⚙️ Mecánicas'], ['mats', '🧭 Materiales'], ['enc', '📚 Enciclopedia']];
+        let guideOpen = false, guideTab = 'mech', guideMat = 'where', guideEnc = 'items', guideStoryCat = 'all', guideQuery = '';
+        const GUIDE_TABS = [['story', '📜 Historia'], ['mech', '⚙️ Mecánicas'], ['mats', '🧭 Materiales'], ['enc', '📚 Enciclopedia']];
+        const STORY_CATS = [['all', '📜 Todo'], ['diary', '📖 Diario de Elías'], ['c2', '🦌 Crónicas del Errante'], ['notes', '🗒️ Notas y Relatos']];
         const gdNorm = (t) => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         const gdDet = (ic, title, body, open, sub) => `<details class="gd"${open ? ' open' : ''}><summary><span class="gd-ic">${ic}</span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</summary><div class="gd-in">${body}</div></details>`;
         const gdChip = (k, n) => `<span class="chip${haveMat(k) >= n ? '' : ' no'}">${icon(k)} ${ITEMS[k][1]} ${haveMat(k) || 0}/${n}</span>`;
@@ -5255,17 +5260,87 @@
             return f.length ? f.map((e) => gdDet(e.ic, e.t, e.b, false, e.sub)).join('') : '<div class="gd-note">Nada coincide con la búsqueda.</div>';
         }
 
+        // ---- Historia y páginas recogidas ----
+        function guideStory() {
+            const q = gdNorm(guideQuery);
+            const cat = guideStoryCat;
+            const cards = [];
+            const push = (group, ic, t, sub, b, open) => {
+                if (cat !== 'all' && cat !== group) return;
+                if (q && !gdNorm(t + ' ' + sub + ' ' + b.replace(/<[^>]+>/g, ' ')).includes(q)) return;
+                cards.push(gdDet(ic, t, b, !!open, sub));
+            };
+
+            const introTxt = ($('intro-text') && $('intro-text').textContent) || '';
+            if (introTxt) {
+                push('diary', '✉️', 'La nota sobre la mesa (Inicio)', 'prólogo · siempre disponible', `<div class="gd-quote">${introTxt}</div>`, nextPage === 0);
+            }
+
+            // Capítulo 1: Diario de Elías (páginas 1..7)
+            for (let i = 0; i < CH1_PAGES; i++) {
+                const got = i < nextPage;
+                const st = STORY_SITES[i];
+                const shown = daysPlayed >= PAGE_REVEAL_DAYS[i];
+                if (got) {
+                    const body = `<div class="gd-quote">${STORY[i].text}</div><small>📍 Encontrada en: ${st.name}</small><button type="button" class="gd-story-btn" data-read-page="${i}">📜 Ver en nota grande</button>`;
+                    push('diary', '📜', `Página ${i + 1}/${CH1_PAGES} · ${STORY[i].title}`, 'recogida ✅', body, i === nextPage - 1);
+                } else if (shown) {
+                    const loc = storyGuideOn() ? `📍 Coordenadas: X ${st.x} · Z ${st.z}` : `🧭 El rumbo exacto se revela el día ${GUIDE_DAY}.`;
+                    push('diary', '🕯️', `Página ${i + 1}/${CH1_PAGES} · Por recoger`, `revelada · ${st.name}`, `<p><b>Pista:</b> ${SITE_CLUES[st.type]}.</p><small>${loc}</small>`, i === nextPage);
+                } else {
+                    push('diary', '❓', `Página ${i + 1}/${CH1_PAGES} · Sin revelar`, `día ${PAGE_REVEAL_DAYS[i]}`, `<p>El diario aún no muestra dónde está esta página. Se revelará al llegar al <b>día ${PAGE_REVEAL_DAYS[i]}</b>.</p>`, false);
+                }
+            }
+
+            // Capítulo 2: Crónicas del Errante
+            if (chapter >= 2) {
+                if (EPILOGUE) push('c2', '🌅', 'Epílogo · Capítulo 1', 'completado ✅', `<div class="gd-quote">${EPILOGUE}</div>`, false);
+                const lore = monsterLore();
+                if (lore) push('c2', '🦌', 'Lo que sabes de Aldric Voss (El Errante)', 'resumen', lore, true);
+                for (let i = CH1_PAGES; i < TOTAL_PAGES; i++) {
+                    const got = i < nextPage;
+                    const st = STORY_SITES[i];
+                    const shown = daysPlayed >= PAGE_REVEAL_DAYS[i];
+                    const num = i - CH1_PAGES + 1;
+                    if (got) {
+                        const body = `<div class="gd-quote">${STORY[i].text}</div><small>📍 Encontrada en: ${st.name}</small><button type="button" class="gd-story-btn" data-read-page="${i}">📜 Ver en nota grande</button>`;
+                        push('c2', '🦌', `Fragmento ${num}/${CH2_PAGES} · ${STORY[i].title}`, 'recogida ✅', body, i === nextPage - 1);
+                    } else if (shown) {
+                        push('c2', '🕯️', `Fragmento ${num}/${CH2_PAGES} · Por recoger`, `revelado · ${st.name}`, `<p><b>Pista:</b> ${SITE_CLUES[st.type]}.</p><small>📍 Coordenadas: X ${st.x} · Z ${st.z}</small>`, i === nextPage);
+                    } else {
+                        push('c2', '❓', `Fragmento ${num}/${CH2_PAGES} · Sin revelar`, `día ${PAGE_REVEAL_DAYS[i]}`, `<p>Este fragmento se revelará en el <b>día ${PAGE_REVEAL_DAYS[i]}</b>.</p>`, false);
+                    }
+                }
+            } else {
+                push('c2', '🔒', 'Capítulo 2 · Crónicas del Errante', 'bloqueado', `<p>Recoge las ${CH1_PAGES} páginas del Diario de Elías y sobrevive a la noche final para desbloquear los 5 fragmentos sobre la verdadera historia del Errante.</p>`, false);
+            }
+
+            // Notas y relatos encontrados
+            if (scratchSeen) {
+                push('notes', '🩸', 'Marcas en la pared · Día 5', '«I GOT YOU»', `<div class="gd-quote">No son de oso ni de lobo: las uñas dejaron astillas claras en la madera, a la altura de tus ojos. «I GOT YOU». Durante cinco días jugó con las ilusiones. Mañana, cuando caiga la noche, dejará de jugar.</div>`, false);
+            }
+            for (const nIdx of [...collectedNotes].sort((a, b) => a - b)) {
+                if (LORE_NOTES[nIdx]) push('notes', '🗒️', `Nota arrugada #${nIdx + 1}`, 'cofre abandonado', `<div class="gd-quote">${LORE_NOTES[nIdx]}</div>`, false);
+            }
+            for (const tIdx of [...shelfRead].sort((a, b) => a - b)) {
+                if (TALES[tIdx]) push('notes', '📚', `Relato ${tIdx + 1}/${TALES.length} · ${TALES[tIdx][0]}`, 'biblioteca', `<div class="gd-quote">${TALES[tIdx][1]}</div>`, false);
+            }
+
+            const stats = `<div class="gd-note">Páginas recogidas: <b>${Math.min(nextPage, TOTAL_PAGES)}/${TOTAL_PAGES}</b>${chapter >= 2 ? ' · Capítulo 2 activo' : ''} · Notas de cofres: <b>${collectedNotes.size}</b> · Relatos leídos: <b>${shelfRead.size}/${TALES.length}</b>.</div>`;
+            return stats + (cards.length ? cards.join('') : '<div class="gd-note">No hay páginas ni notas que coincidan con tu filtro.</div>');
+        }
+
         // ---- Panel ----
         function renderGuideTools() {
             const el = $('guide-tools');
             if (guideTab === 'mech') { el.innerHTML = ''; return; }
-            const chips = guideTab === 'mats' ? [['where', '🌍 Dónde conseguirlo'], ['how', '🧰 Cómo fabricarlo']] : ENC_CATS;
-            const cur = guideTab === 'mats' ? guideMat : guideEnc;
+            const chips = guideTab === 'story' ? STORY_CATS : (guideTab === 'mats' ? [['where', '🌍 Dónde conseguirlo'], ['how', '🧰 Cómo fabricarlo']] : ENC_CATS);
+            const cur = guideTab === 'story' ? guideStoryCat : (guideTab === 'mats' ? guideMat : guideEnc);
             el.innerHTML = chips.map(([id, nm]) => `<button class="gtab${id === cur ? ' on' : ''}" data-s="${id}">${nm}</button>`).join('') +
                 `<input id="guide-q" type="search" placeholder="Buscar..." autocomplete="off" value="${guideQuery.replace(/"/g, '&quot;')}">`;
         }
         function renderGuideBody() {
-            $('guide-body').innerHTML = guideTab === 'mech' ? guideMech() : (guideTab === 'mats' ? guideMats() : guideEncy());
+            $('guide-body').innerHTML = guideTab === 'story' ? guideStory() : (guideTab === 'mech' ? guideMech() : (guideTab === 'mats' ? guideMats() : guideEncy()));
         }
         function renderGuide() {
             $('guide-tabs').innerHTML = GUIDE_TABS.map(([id, nm]) => `<button class="gtab${id === guideTab ? ' on' : ''}" data-g="${id}">${nm}</button>`).join('');
@@ -5283,10 +5358,16 @@
         $('guide-tabs').addEventListener('click', (e) => { const b = e.target.closest('.gtab'); if (!b) return; guideTab = b.dataset.g; guideQuery = ''; playSound('click'); renderGuide(); });
         $('guide-tools').addEventListener('click', (e) => {
             const b = e.target.closest('[data-s]'); if (!b) return;
-            if (guideTab === 'mats') guideMat = b.dataset.s; else guideEnc = b.dataset.s;
+            if (guideTab === 'story') guideStoryCat = b.dataset.s; else if (guideTab === 'mats') guideMat = b.dataset.s; else guideEnc = b.dataset.s;
             guideQuery = ''; playSound('click'); renderGuide();
         });
         $('guide-tools').addEventListener('input', (e) => { if (e.target.id === 'guide-q') { guideQuery = e.target.value; renderGuideBody(); } });
+        $('guide-body').addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-read-page]');
+            if (!btn) return;
+            const id = +btn.dataset.readPage;
+            if (STORY[id]) { toggleGuide(false); showNote(id); playSound('pagePickup'); }
+        });
         $('guide-recipes').addEventListener('click', () => { guideOpen = false; setDisplay(guidePanel, 'none'); craftOpen = false; toggleCraft(true); });
         $('guide-close').addEventListener('click', () => toggleGuide(false));
         $('craft-guide').addEventListener('click', () => toggleGuide(true));
@@ -5576,6 +5657,20 @@
             if (chatOpen) { if (e.code === 'Escape') closeHack(); return; }   // con el chat abierto, las teclas son para escribir
             if (e.target && e.target.id === 'wp-input') { if (e.code === 'Escape') closeChest(); else if (e.code === 'Enter') saveWaypointName(); return; }   // escribiendo el nombre de un punto
             if (e.target && e.target.id === 'guide-q') { if (e.code === 'Escape') e.target.blur(); return; }   // escribiendo en el buscador del Utilitario
+            if (e.code === 'Escape' && started && !gameEnded) {
+                e.preventDefault();
+                if (guideOpen) { toggleGuide(false); return; }
+                if (stoveOpen || craftOpen) { toggleCraft(false); return; }
+                if (chestOpen) { closeChest(); return; }
+                if (pickerOpen) { closePicker(); return; }
+                if (bagOpen) { toggleBag(); return; }
+                if (ui.note.style.display === 'block') { hideNote(); return; }
+                if (!IS_MOBILE) {
+                    if (paused) { paused = false; setDisplay(ui.pause, 'none'); tryLock(); }
+                    else { paused = true; clearInputs(); setDisplay(ui.pause, 'flex'); if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock(); }
+                }
+                return;
+            }
             if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();
             keys[e.code] = true;
             if (e.repeat || !started || paused || gameEnded) return;
@@ -10306,10 +10401,12 @@
             if (left.length) { setTimeout(fullMsg, got.length ? 1800 : 0); return; }   // mochila llena: lo que no cabe se queda en el cofre
             c.opened = true; lootedChests.add(c.id);
             if (hash2(c.x, c.z, 77) < 0.6) {   // a veces, una nota arrugada con la voz de quien lo dejó
+                const nIdx = Math.floor(hash2(c.x, c.z, 78) * LORE_NOTES.length);
+                collectedNotes.add(nIdx);
                 setTimeout(() => {
                     if (!started || gameEnded) return;
                     setText(ui.noteTitle, 'NOTA ARRUGADA');
-                    setText(ui.noteText, LORE_NOTES[Math.floor(hash2(c.x, c.z, 78) * LORE_NOTES.length)]);
+                    setText(ui.noteText, LORE_NOTES[nIdx]);
                     setDisplay(ui.note, 'block'); noteTimer = 16;
                 }, 1400);
             }
@@ -11399,7 +11496,7 @@
 
             nextPage = 0;
             chapter = 1; TOTAL_PAGES = CH1_PAGES; for (let k = CH1_PAGES; k < PAGE_REVEAL_DAYS.length; k++) PAGE_REVEAL_DAYS[k] = 0; btnContinue.style.display = 'none';
-            finalNight = false; finalChase = false; hintedPages.clear(); pendingHint = false; pendingGuide = false; pendingOmen = 0; scratchSeen = false;
+            finalNight = false; finalChase = false; hintedPages.clear(); pendingHint = false; pendingGuide = false; pendingOmen = 0; scratchSeen = false; collectedNotes.clear();
             verity.state = verityUnlocked ? 'follow' : 'off'; verity.pos.copy(player.position); verity.t = 0;   // Verity sigue desbloqueada durante la sesión
             resetScare();
             placePageObj();
@@ -11453,10 +11550,10 @@
         const lsSet = (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } };
         const lsDel = (k) => { try { localStorage.removeItem(k); } catch (e) { /* sin almacenamiento */ } };
         const storageOK = lsSet('cabana_test', '1'); lsDel('cabana_test');
-        const OPT = { vol: 0.7, sens: 1, voice: true, cont: 'cabin', autoFs: true };   // cont: dónde apareces al continuar (cabin · respawn · saved)
+        const OPT = { vol: 0.7, sens: 1, voice: true, cont: 'cabin', autoFs: false };   // cont: dónde apareces al continuar (cabin · respawn · saved)
         try { Object.assign(OPT, JSON.parse(lsGet('cabana_opts') || '{}')); } catch (e) { /* opciones por defecto */ }
         OPT.cont = ['cabin', 'respawn', 'saved'].includes(OPT.cont) ? OPT.cont : 'cabin';
-        OPT.vol = Math.min(1, Math.max(0, +OPT.vol || 0)); OPT.sens = Math.min(2.5, Math.max(0.3, +OPT.sens || 1)); OPT.voice = OPT.voice !== false; OPT.autoFs = OPT.autoFs !== false;
+        OPT.vol = Math.min(1, Math.max(0, +OPT.vol || 0)); OPT.sens = Math.min(2.5, Math.max(0.3, +OPT.sens || 1)); OPT.voice = OPT.voice !== false; OPT.autoFs = OPT.autoFs === true;
         const saveOpts = () => lsSet('cabana_opts', JSON.stringify(OPT));
         const applyAudioOpt = () => { if (masterGain) masterGain.gain.value = OPT.vol; };
 
@@ -11489,7 +11586,7 @@
             sv.sanity = player.sanity; sv.hunger = player.hunger; sv.flash = flashlightOn;
             sv.dayTime = dayTime; sv.days = daysPlayed; sv.weather = weather; sv.wx = [wxCloud, wxRain, wxFog];
             sv.inv = Object.assign({}, inventory); sv.slots = slots.slice(); sv.selSlot = selSlot; sv.owned = [...ownedSeen]; sv.disc = [...discovered]; sv.durab = Object.assign({}, durab);
-            sv.chapter = chapter; sv.nextPage = nextPage; sv.reveal = Array.from(PAGE_REVEAL_DAYS); sv.finalNight = finalNight; sv.finalChase = finalChase; sv.hinted = [...hintedPages]; sv.scratch = scratchSeen;
+            sv.chapter = chapter; sv.nextPage = nextPage; sv.reveal = Array.from(PAGE_REVEAL_DAYS); sv.finalNight = finalNight; sv.finalChase = finalChase; sv.hinted = [...hintedPages]; sv.scratch = scratchSeen; sv.notes = [...collectedNotes];
             sv.planks = [...collectedPlanks]; sv.chests = [...lootedChests];
             sv.door = { state: door.state, planks: door.planks, damage: door.damage };
             sv.tentUpg = { level: tentUpg.level, dep: tentUpg.dep }; sv.pocketInit = pocketInit;
@@ -11583,6 +11680,7 @@
                 (sv.reveal || []).forEach((v, i) => { PAGE_REVEAL_DAYS[i] = v; });
                 nextPage = sv.nextPage || 0; finalNight = !!sv.finalNight; finalChase = !!sv.finalChase; scratchSeen = !!sv.scratch;
                 hintedPages.clear(); (sv.hinted || []).forEach((k) => hintedPages.add(k));
+                collectedNotes.clear(); (sv.notes || []).forEach((k) => collectedNotes.add(k));
                 dayTime = sv.dayTime || 0; daysPlayed = sv.days || 1; setText(ui.dayCount, `DÍA ${daysPlayed}`);
                 weather = WX[sv.weather] ? sv.weather : 'sunny'; [wxCloud, wxRain, wxFog] = sv.wx || [0, 0, 0];
                 updateDayNightCycle(0);
@@ -11718,12 +11816,15 @@
                 const voice = el('input'); voice.type = 'checkbox'; voice.checked = OPT.voice; voice.onchange = () => { OPT.voice = voice.checked; saveOpts(); };
                 row('Voz de las criaturas', 'El Vigía susurra con voz del navegador (el subtítulo se mantiene).', voice);
                 if (document.fullscreenEnabled) {
-                    const fs = el('button', 'sbtn ghost', '⛶ Pantalla completa'); fs.onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); };
-                    row('Pantalla', '', fs);
-                    if (IS_MOBILE) {
-                        const af = el('input'); af.type = 'checkbox'; af.checked = OPT.autoFs; af.onchange = () => { OPT.autoFs = af.checked; saveOpts(); };
-                        row('Pantalla completa automática', 'Al empezar a jugar en el móvil se oculta la barra del navegador y la pantalla no se apaga.', af);
-                    }
+                    const fs = el('button', 'sbtn ghost', '⛶ Pantalla completa');
+                    fs.onclick = () => {
+                        if (window.parent && window.parent !== window) {
+                            try { window.parent.postMessage({ type: 'toggle-fullscreen' }, window.location.origin); return; } catch (e) { /* respaldo local */ }
+                        }
+                        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+                        else document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => document.documentElement.requestFullscreen().catch(() => {}));
+                    };
+                    row('Pantalla', 'Se mantiene fija sin cerrarse al abrir menús o pulsar Esc.', fs);
                 }
                 const wipe = el('button', 'sbtn ghost', '🗑 Borrar todo'); armConfirm(wipe, '¿Borrar partidas?', () => { for (let i = 0; i < SLOTS_N; i++) deleteSlot(i); refreshMain(); openOptions(); });
                 row('Datos guardados', 'Borra las 3 partidas de este navegador.', wipe);
@@ -11842,15 +11943,21 @@
         }
         window.addEventListener('resize', fitScreen);
         window.addEventListener('orientationchange', () => { fitScreen(); setTimeout(fitScreen, 120); setTimeout(fitScreen, 500); });   // algunos navegadores tardan en actualizar el tamaño
-        document.addEventListener('fullscreenchange', () => { fitScreen(); setTimeout(fitScreen, 200); });
+        document.addEventListener('fullscreenchange', () => {
+            fitScreen(); setTimeout(fitScreen, 200);
+            try {
+                if (document.fullscreenElement && navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock(['Escape']).catch(() => {});
+                else if (!document.fullscreenElement && navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock();
+            } catch (e) { /* opcional */ }
+        });
         if (window.visualViewport) window.visualViewport.addEventListener('resize', fitScreen);
         const rotHint = document.createElement('div'); rotHint.id = 'rotate-hint'; rotHint.textContent = '📱 Gira el teléfono en horizontal para jugar mejor';
         rotHint.addEventListener('pointerdown', () => document.body.classList.add('hint-off')); document.body.appendChild(rotHint);
         // Bloquea el zoom con dos dedos de iOS (el meta viewport lo ignora en Safari)
         for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault());
 
-        // --- Modo inmersivo en móvil: pantalla completa (se intenta una sola vez, en el primer toque) y pantalla siempre encendida ---
-        let wakeLock = null, fsTried = false;
+        // --- Modo inmersivo en móvil: mantiene la pantalla encendida sin forzar pantalla completa automática ---
+        let wakeLock = null;
         async function keepAwake() {
             try {
                 if ('wakeLock' in navigator && !wakeLock && document.visibilityState === 'visible') {
@@ -11862,9 +11969,6 @@
         function goImmersive() {
             if (!IS_MOBILE) return;
             keepAwake();
-            if (fsTried || !OPT.autoFs || !document.fullscreenEnabled || document.fullscreenElement) return;
-            fsTried = true;
-            try { const pr = document.documentElement.requestFullscreen({ navigationUI: 'hide' }); if (pr && pr.catch) pr.catch(() => {}); } catch (e) { /* sin pantalla completa */ }
         }
         document.addEventListener('click', goImmersive, true);
         document.addEventListener('touchend', goImmersive, true);

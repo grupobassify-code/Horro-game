@@ -21,22 +21,70 @@ export default function App() {
 
     frame.addEventListener('load', handleLoad);
 
+    const lockEsc = () => {
+      try {
+        const kb = (navigator as unknown as { keyboard?: { lock?: (keys: string[]) => Promise<void> } }).keyboard;
+        if (kb && typeof kb.lock === 'function') kb.lock(['Escape']).catch(() => {});
+      } catch {
+        // Keyboard Lock API optional
+      }
+    };
+
+    const unlockEsc = () => {
+      try {
+        const kb = (navigator as unknown as { keyboard?: { unlock?: () => void } }).keyboard;
+        if (kb && typeof kb.unlock === 'function') kb.unlock();
+      } catch {
+        // Keyboard Lock API optional
+      }
+    };
+
     const onFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
+      const fs = Boolean(document.fullscreenElement);
+      setIsFullscreen(fs);
+      if (fs) {
+        lockEsc();
+        try {
+          frame.contentWindow?.focus();
+        } catch {
+          // ignore
+        }
+      } else {
+        unlockEsc();
+      }
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
+
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      if (e.data && e.data.type === 'toggle-fullscreen') {
+        toggleFullscreen();
+      }
+    };
+    window.addEventListener('message', onMessage);
 
     return () => {
       frame.removeEventListener('load', handleLoad);
       document.removeEventListener('fullscreenchange', onFullscreenChange);
+      window.removeEventListener('message', onMessage);
+      unlockEsc();
     };
   }, []);
 
   const toggleFullscreen = () => {
+    const el = document.documentElement;
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
+      const req = (el as HTMLElement & { requestFullscreen: (opts?: { navigationUI?: string }) => Promise<void> });
+      req.requestFullscreen({ navigationUI: 'hide' }).catch(() => {
+        el.requestFullscreen().catch(() => {});
+      });
     } else {
       document.exitFullscreen().catch(() => {});
+    }
+    try {
+      iframeRef.current?.contentWindow?.focus();
+    } catch {
+      // ignore
     }
   };
 
