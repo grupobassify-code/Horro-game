@@ -64,6 +64,44 @@
             z-index: 6;
             transition: opacity 0.2s ease;
         }
+        #ch3-scanlines {
+            opacity: 0;
+            pointer-events: none;
+            z-index: 7;
+            background:
+                repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.34) 0px, rgba(0, 0, 0, 0.34) 1px, transparent 1px, transparent 3px),
+                radial-gradient(circle at 50% 50%, transparent 45%, rgba(95, 0, 18, 0.38) 100%);
+        }
+        .ch3-tear {
+            position: fixed;
+            left: 0;
+            width: 100%;
+            height: 0;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 8;
+            background: linear-gradient(90deg, rgba(255, 22, 68, 0.45), rgba(20, 235, 255, 0.32), rgba(255, 10, 40, 0.48));
+            mix-blend-mode: screen;
+        }
+        body.ch3-dark #hud-top .status-card {
+            border-color: rgba(255, 38, 68, 0.58);
+            box-shadow: 0 0 18px rgba(110, 0, 20, 0.65);
+        }
+        body.ch3-dark .hud-corrupt {
+            transform: translate(var(--gx, 0px), var(--gy, 0px)) skewX(var(--gsk, 0deg));
+            text-shadow: -2px 0 rgba(255, 30, 75, 0.85), 2px 0 rgba(25, 230, 255, 0.75);
+        }
+        body.ch4-backrooms #hud-top .status-card {
+            border-color: rgba(212, 186, 62, 0.62);
+            box-shadow: 0 0 18px rgba(155, 130, 20, 0.45);
+        }
+        body.ch4-backrooms #ch3-scanlines {
+            opacity: 0.24 !important;
+            background: repeating-linear-gradient(0deg, rgba(18, 16, 4, 0.28) 0px, rgba(18, 16, 4, 0.28) 1px, rgba(255, 236, 130, 0.03) 1px, rgba(255, 236, 130, 0.03) 3px);
+        }
+        body.ch4-backrooms #vignette {
+            box-shadow: inset 0 0 150px rgba(24, 20, 4, 0.92);
+        }
 
         #scare-face { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; pointer-events: none; z-index: 80; filter: contrast(1.25) saturate(1.2); }
         .scare-ai { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; pointer-events: none; z-index: 81; will-change: transform, opacity, filter; transform-origin: center center; }
@@ -690,6 +728,9 @@
     <div id="vignette" class="fill"></div>
     <div id="camera-flash-overlay" class="fill"></div>
     <div id="glitch-overlay" class="fill"></div>
+    <div id="ch3-scanlines" class="fill"></div>
+    <div id="ch3-tear-a" class="ch3-tear"></div>
+    <div id="ch3-tear-b" class="ch3-tear"></div>
     <div id="crosshair"></div>
     <div id="sleep-overlay" class="fill"></div>
     <canvas id="scare-face"></canvas>
@@ -914,6 +955,7 @@
             objective: $('objective'), victoryText: $('victory-text'), introText: $('intro-text'), time: $('time-display'), dayCount: $('day-count'), sanity: $('sanity-fill'), hunger: $('hunger-fill'),
             hotbar: $('inventory-hud'), pages: $('pages-count'), cam: $('camera-status'),
             prompt: $('interact-prompt'), glitch: $('glitch-overlay'), flash: $('camera-flash-overlay'), vignette: $('vignette'),
+            ch3Scan: $('ch3-scanlines'), ch3TearA: $('ch3-tear-a'), ch3TearB: $('ch3-tear-b'),
             start: $('start-screen'), pause: $('pause-screen'),
             death: $('jumpscare-screen'), victory: $('victory-screen'),
             deathTitle: $('death-title'), deathDesc: $('death-desc')
@@ -955,7 +997,7 @@
         // 2. AUDIO (sintetizado con Web Audio, sin archivos externos)
         // ============================================================
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        let audioCtx = null, masterGain = null, noiseBuffer = null, windGain = null, rainGain = null, fogGain = null;
+        let audioCtx = null, masterGain = null, noiseBuffer = null, windGain = null, rainGain = null, fogGain = null, backroomGain = null;
 
         function initAudio() {
             if (!AudioCtx) return;
@@ -1009,6 +1051,15 @@
             fogLfo.connect(fogLfoG); fogLfoG.connect(fogTrem.gain);
             fogA.connect(fogTrem); fogB.connect(fogTrem); fogTrem.connect(fogGain); fogGain.connect(masterGain);
             fogA.start(); fogB.start(); fogLfo.start();
+
+            // Backrooms: zumbido fluorescente constante (60 Hz + 120 Hz + ruido suave)
+            backroomGain = audioCtx.createGain(); backroomGain.gain.value = 0;
+            const brHumA = audioCtx.createOscillator(), brHumB = audioCtx.createOscillator();
+            brHumA.type = 'sawtooth'; brHumA.frequency.value = 60;
+            brHumB.type = 'sine'; brHumB.frequency.value = 120;
+            const brLP = audioCtx.createBiquadFilter(); brLP.type = 'lowpass'; brLP.frequency.value = 280;
+            brHumA.connect(brLP); brHumB.connect(brLP); brLP.connect(backroomGain); backroomGain.connect(masterGain);
+            brHumA.start(); brHumB.start();
         }
 
         function tone(o) {
@@ -1235,6 +1286,16 @@
                     noiseBurst({ filter: 'highpass', freq: 3000, dur: 0.08, vol: 0.1 * vol, delay: 0.02 });
                     tone({ type: 'sine', f0: 420, f1: 180, dur: 0.09, vol: 0.06 * vol });
                     break;
+                case 'glitchTear':   // fractura de realidad en el capítulo 3
+                    tone({ type: 'square', points: [[0, 620], [0.04, 140], [0.09, 980], [0.16, 72]], dur: 0.18, vol: 0.19 * vol });
+                    tone({ type: 'sawtooth', points: [[0, 74], [0.12, 36]], dur: 0.22, vol: 0.26 * vol });
+                    noiseBurst({ filter: 'highpass', freq: 2400, dur: 0.16, vol: 0.22 * vol });
+                    break;
+                case 'noclip':   // caída fuera de la realidad hacia los Backrooms
+                    tone({ type: 'sawtooth', points: [[0, 320], [0.25, 110], [0.85, 42]], dur: 0.9, vol: 0.36 * vol });
+                    tone({ type: 'sine', points: [[0, 60], [0.9, 60]], dur: 0.95, vol: 0.25 * vol });
+                    noiseBurst({ filter: 'bandpass', freq: 420, dur: 0.7, vol: 0.22 * vol });
+                    break;
             }
         }
 
@@ -1305,6 +1366,7 @@
                 return;
             }
             const under = blockAt(Math.floor(px + 0.5), Math.floor(player.position.y - player.height - 0.1 + 0.5), Math.floor(pz + 0.5));
+            if (under === B.BR_CARPET) { noiseBurst({ filter: 'lowpass', freq: 520, dur: 0.08, vol: 0.13 }); tone({ type: 'sine', f0: 95, f1: 58, dur: 0.06, vol: 0.04 }); return; }   // moqueta húmeda de los Backrooms
             if (under === B.PLANKS) { noiseBurst({ freq: 700, dur: 0.07, vol: 0.14 }); tone({ type: 'square', f0: 170, f1: 90, dur: 0.06, vol: 0.06 }); return; }   // suelo de la cabaña
             stepVoice(biomeAt(px, pz), pudLevel > 0.25);
         }
@@ -1388,6 +1450,14 @@
         const flashBurst = new THREE.PointLight(0xffffff, 0, 28, 1);
         scene.add(flashBurst);
         let flashBurstTimer = 0;
+
+        // Luces fluorescentes agrupadas para los Backrooms (pool fijo para evitar recompilar shaders)
+        const backroomLights = [];
+        for (let i = 0; i < 3; i++) {
+            const bl = new THREE.PointLight(0xfff1a8, 0, 15, 1.15);
+            scene.add(bl);
+            backroomLights.push(bl);
+        }
 
         function toggleFlashlight() {
             if (!started || gameEnded) return;
@@ -1497,6 +1567,13 @@
         // Extremos de tronco con anillos de crecimiento
         defTile('oakLogTop', '#6b4a2a', '#3f2a15', 'rings'); defTile('birchLogTop', '#d9cfb0', '#a69c80', 'rings'); defTile('deadLogTop', '#5e584d', '#3a362f', 'rings');
         defTile('charredTop', '#2e2824', '#14100e', 'rings'); defTile('redLogTop', '#7a3a22', '#4a2012', 'rings');
+        // Backrooms (casillas 57..62 del atlas 8x8)
+        defTile('brWall', '#c9be6c', '#a3974b', 'brWall');
+        defTile('brCarpet', '#8f7d3a', '#685923', 'brCarpet');
+        defTile('brCeil', '#b5b19d', '#878372', 'brCeil');
+        defTile('brLight', '#fffbe0', '#e3d586', 'brLight');
+        defTile('brRedWall', '#6e1d20', '#420c0e', 'brWall');
+        defTile('brExit', '#279e49', '#0e4f20', 'brExit');
 
         // --- Texturas naturales con estructura: briznas, guijarros, hojas, anillos de tronco… (ruido determinista: no gasta el rand() global) ---
         const th = (x, y, sd) => { let h = (Math.imul(x + 31, 374761393) ^ Math.imul(y + 17, 668265263) ^ Math.imul(sd + 5, 2147483647)) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -1733,6 +1810,25 @@
                         else if (x === 7 || x === 8 || y === 7 || y === 8) { col = detail; k = 1.05; }
                         else { col = base; k = 0.92 + rand() * 0.1; }
                         if ((x === 3 || x === 12) && (y === 3 || y === 12)) { col = [150, 155, 160]; k = 1; }
+                    } else if (kind === 'brWall') {   // papel pintado húmedo con rayas verticales y manchas abajo
+                        col = (x % 4 === 0) ? detail : base;
+                        k = 0.94 + rand() * 0.08;
+                        if (y >= 13) { col = detail; k = 0.72 + rand() * 0.12; }
+                        else if (y === 12) k *= 0.86;
+                    } else if (kind === 'brCarpet') {   // moqueta húmeda y moteada
+                        col = rand() > 0.72 ? detail : base;
+                        k = 0.86 + rand() * 0.24;
+                        if ((x + y * 2) % 9 === 0) k *= 0.8;
+                    } else if (kind === 'brCeil') {   // placas acústicas del techo
+                        if (x === 0 || y === 0 || x === 8 || y === 8) { col = detail; k = 0.78; }
+                        else { col = base; k = 0.92 + rand() * 0.1; if ((x + y) % 5 === 0) k *= 0.9; }
+                    } else if (kind === 'brLight') {   // panel fluorescente brillante
+                        if (x === 0 || y === 0 || x === 15 || y === 15) { col = detail; k = 0.88; }
+                        else { col = base; k = 1.15; }
+                    } else if (kind === 'brExit') {   // puerta de salida de emergencia verde
+                        if (x < 2 || x > 13 || y < 2 || y > 13) { col = detail; k = 0.82; }
+                        else if (y >= 5 && y <= 10 && x >= 4 && x <= 11) { col = [235, 255, 240]; k = 1.15; }
+                        else { col = base; k = 0.96 + rand() * 0.08; }
                     }
                     px(x, y, col, k);
                 }
@@ -1764,8 +1860,12 @@
             WILLOW_LEAF: 29, RED_LOG: 30, INVIS: 31,
             SMOOTH: 32, ADOBE: 33, VARNISH: 34, WOOLB: 35, IRONB: 36,   // bloques de construcción (se fabrican)   // INVIS: colisión invisible (muebles de la cabaña), no se dibuja
             // A partir de 40: plantas (sin colisión, dibujadas como planos cruzados)
-            P_GRASS: 40, P_FLOWER_R: 41, P_FLOWER_W: 42, P_FLOWER_Y: 43, P_FERN: 44, P_DEAD: 45, P_REED: 46, P_MUSH: 47, P_ROCK: 48, P_COTTON: 49
+            P_GRASS: 40, P_FLOWER_R: 41, P_FLOWER_W: 42, P_FLOWER_Y: 43, P_FERN: 44, P_DEAD: 45, P_REED: 46, P_MUSH: 47, P_ROCK: 48, P_COTTON: 49,
+            // A partir de 50: bloques sólidos de los Backrooms
+            BR_WALL: 50, BR_CARPET: 51, BR_CEIL: 52, BR_LIGHT: 53, BR_REDWALL: 54, BR_EXIT: 55
         };
+        const isPlantId = (id) => id >= 40 && id <= 49;
+        const isSolidId = (id) => id > 0 && !isPlantId(id);
         const BLOCK_FACES = {};  // id -> [lateral, superior, inferior]
         const defBlock = (id, side, top, bottom) => { BLOCK_FACES[id] = [T[side], T[top || side], T[bottom || side]]; };
         for (let i = 0; i < 6; i++) defBlock(B.GRASS_DARK + i, 'gSide' + i, 'gTop' + i, 'dirt');
@@ -1778,6 +1878,7 @@
         defBlock(B.MUSH_STEM, 'mushStem'); defBlock(B.CHARRED, 'charred', 'charredTop', 'charredTop'); defBlock(B.MUD, 'mud');
         defBlock(B.WILLOW_LEAF, 'willowLeaf'); defBlock(B.RED_LOG, 'redLog', 'redLogTop', 'redLogTop');
         defBlock(B.SMOOTH, 'smooth'); defBlock(B.ADOBE, 'adobe'); defBlock(B.VARNISH, 'varnish'); defBlock(B.WOOLB, 'woolb'); defBlock(B.IRONB, 'ironb');
+        defBlock(B.BR_WALL, 'brWall'); defBlock(B.BR_CARPET, 'brCarpet'); defBlock(B.BR_CEIL, 'brCeil'); defBlock(B.BR_LIGHT, 'brLight'); defBlock(B.BR_REDWALL, 'brRedWall'); defBlock(B.BR_EXIT, 'brExit');
         const PLANT_TILE = {
             [B.P_GRASS]: T.pGrass, [B.P_FLOWER_R]: T.pFlowerR, [B.P_FLOWER_W]: T.pFlowerW, [B.P_FLOWER_Y]: T.pFlowerY,
             [B.P_FERN]: T.pFern, [B.P_DEAD]: T.pDead, [B.P_REED]: T.pReed, [B.P_MUSH]: T.pMush, [B.P_ROCK]: T.pRock, [B.P_COTTON]: T.pCotton
@@ -1924,7 +2025,7 @@
         function hitDoor(delta) {
             door.shake = 1;
             if (door.planks > 0) return;   // con tablas puestas aguanta los golpes indefinidamente: la puerta bloqueada es inquebrantable
-            door.damage += delta;
+            door.damage += delta * (chapter >= 3 ? 2.0 : 1.0);   // en el capítulo 3 golpea con furia doble
             if (door.damage >= doorStrength()) {
                 door.state = 'broken';
                 door.planks = 0;
@@ -2390,6 +2491,14 @@
         const PKX = POCKET.cx * CS + 8, PKZ = POCKET.cz * CS + 8;   // centro del cuarto
         const isPocketChunk = (cx, cz) => Math.abs(cx - POCKET.cx) <= 12 && Math.abs(cz - POCKET.cz) <= 12;
         let inTent = false, tentFrom = null, pocketInit = false;
+        // --- Capítulo 4: Los Backrooms (Nivel 0) · laberinto lejano aislado del bosque ---
+        const BR_CX = 3000, BR_CZ = 3000, BR_CELL = 6;
+        const BKX = BR_CX * CS + 8, BKZ = BR_CZ * CS + 8;       // 48008, 48008
+        const BKX_SPAWN = BKX + 3, BKZ_SPAWN = BKZ + 3;          // 48011, 48011 (centro de la celda inicial 0,0)
+        const isBackroomChunk = (cx, cz) => Math.abs(cx - BR_CX) <= 18 && Math.abs(cz - BR_CZ) <= 18;
+        const inBackrooms = () => chapter >= 4 && !inTent && Math.abs(player.position.x - BKX) < 320 && Math.abs(player.position.z - BKZ) < 320;
+        let brGraceT = 0;
+        let ch3Trap = { active: false, t: 0 };
         const POCKET_LV = [{ h: 1, ceil: 4 }, { h: 2, ceil: 4 }, { h: 3, ceil: 5 }, { h: 4, ceil: 6 }];   // h: semilado del interior (3x3, 5x5, 7x7, 9x9); ceil: altura del techo
         const tentUpg = { level: 0, dep: {} };   // nivel de la casa de acampar y materiales ya puestos para el siguiente
         // --- Establecimiento: 5 niveles; cada uno amplía el radio y suma una mejora dentro de él ---
@@ -2461,23 +2570,35 @@
         }
 
         // --- Historia ---
-        // Capítulo 1: 7 páginas del diario de Elías. Capítulo 2 («mini capítulo», se desbloquea al ganar): 5 fragmentos sobre el Errante
-        const CH1_PAGES = 7, CH2_PAGES = 5;
+        // Capítulo 1: 7 páginas del diario de Elías. Capítulo 2: 5 fragmentos sobre Aldric Voss. Capítulo 3: 5 fragmentos de la fractura del Ciervo Hueco. Capítulo 4: 5 notas en Los Backrooms.
+        const CH1_PAGES = 7, CH2_PAGES = 5, CH3_PAGES = 5, CH4_PAGES = 5;
         let TOTAL_PAGES = CH1_PAGES, chapter = 1;
         const STORY_SITES = [
-            { type: 'camp',      x: 38,  z: -30, pageY: 0.95, name: 'CAMPAMENTO DE LOS BUSCADORES' },
-            { type: 'ranger',    x: -46, z: -24, pageY: 0.95, name: 'PUESTO DEL GUARDABOSQUES' },
-            { type: 'well',      x: -62, z: 34,  pageY: 0.95, name: 'EL POZO VIEJO' },
-            { type: 'graveyard', x: 28,  z: 66,  pageY: 0.95, name: 'EL CEMENTERIO' },
-            { type: 'field',     x: 84,  z: 16,  pageY: 0.95, name: 'EL CAMPO DEL ESPANTAPÁJAROS' },
-            { type: 'wagon',     x: 60,  z: -72, pageY: 0.95, name: 'LA CARRETA VOLCADA' },
-            { type: 'circle',    x: -60, z: -58, pageY: 1.95, name: 'EL CÍRCULO DE PIEDRAS' },
-            // --- Capítulo 2: Crónicas del Errante (las estructuras existen desde el principio; las páginas solo se activan en el capítulo 2) ---
-            { type: 'hut',       x: -20, z: -88, pageY: 0.95, name: 'LA CABAÑA DEL PRIMER GUARDABOSQUES' },
-            { type: 'chapel',    x: -92, z: -2,  pageY: 0.95, name: 'LA CAPILLA EN RUINAS' },
-            { type: 'altar',     x: -30, z: 88,  pageY: 0.95, name: 'EL ALTAR DEL CIERVO HUECO' },
-            { type: 'tomb',      x: 90,  z: -34, pageY: 0.95, name: 'LA TUMBA SIN NOMBRE' },
-            { type: 'tower',     x: 70,  z: 62,  pageY: 0.95, name: 'LA TORRE DEL FAROL' }
+            { type: 'camp',      x: 38,   z: -30,  pageY: 0.95, name: 'CAMPAMENTO DE LOS BUSCADORES' },
+            { type: 'ranger',    x: -46,  z: -24,  pageY: 0.95, name: 'PUESTO DEL GUARDABOSQUES' },
+            { type: 'well',      x: -62,  z: 34,   pageY: 0.95, name: 'EL POZO VIEJO' },
+            { type: 'graveyard', x: 28,   z: 66,   pageY: 0.95, name: 'EL CEMENTERIO' },
+            { type: 'field',     x: 84,   z: 16,   pageY: 0.95, name: 'EL CAMPO DEL ESPANTAPÁJAROS' },
+            { type: 'wagon',     x: 60,   z: -72,  pageY: 0.95, name: 'LA CARRETA VOLCADA' },
+            { type: 'circle',    x: -60,  z: -58,  pageY: 1.95, name: 'EL CÍRCULO DE PIEDRAS' },
+            // --- Capítulo 2: Crónicas del Errante ---
+            { type: 'hut',       x: -20,  z: -88,  pageY: 0.95, name: 'LA CABAÑA DEL PRIMER GUARDABOSQUES' },
+            { type: 'chapel',    x: -92,  z: -2,   pageY: 0.95, name: 'LA CAPILLA EN RUINAS' },
+            { type: 'altar',     x: -30,  z: 88,   pageY: 0.95, name: 'EL ALTAR DEL CIERVO HUECO' },
+            { type: 'tomb',      x: 90,   z: -34,  pageY: 0.95, name: 'LA TUMBA SIN NOMBRE' },
+            { type: 'tower',     x: 70,   z: 62,   pageY: 0.95, name: 'LA TORRE DEL FAROL' },
+            // --- Capítulo 3: Archivos de la Grieta ---
+            { type: 'shrine',    x: -108, z: -64,  pageY: 0.95, name: 'EL MONOLITO DE CENIZA' },
+            { type: 'hollow',    x: 112,  z: 46,   pageY: 0.95, name: 'LA RAÍZ HUECA' },
+            { type: 'observ',    x: -88,  z: 98,   pageY: 0.95, name: 'EL MIRADOR QUEBRADO' },
+            { type: 'crypt',     x: 42,   z: -112, pageY: 0.95, name: 'LA CRIPTA DEL NOMBRE' },
+            { type: 'nexus',     x: 114,  z: -86,  pageY: 1.95, name: 'EL NÚCLEO DEL CIERVO' },
+            // --- Capítulo 4: Los Backrooms (Nivel 0) ---
+            { type: 'br_lobby',   x: BKX + 27, z: BKZ + 3,  pageY: 0.95, name: 'RECEPCIÓN HÚMEDA · NIVEL 0' },
+            { type: 'br_pillar',  x: BKX - 21, z: BKZ - 15, pageY: 0.95, name: 'SALA DE LAS COLUMNAS' },
+            { type: 'br_office',  x: BKX + 33, z: BKZ + 33, pageY: 0.95, name: 'OFICINA SIN VENTANAS' },
+            { type: 'br_redroom', x: BKX - 33, z: BKZ + 33, pageY: 0.95, name: 'EL CORREDOR CARMESÍ' },
+            { type: 'br_exit',    x: BKX + 3,  z: BKZ - 39, pageY: 0.95, name: 'LA PUERTA DE SALIDA' }
         ];
         const STORY = [
             { title: 'Los que vinieron a buscarme', text: 'Día 3. Los aldeanos subieron con antorchas y acamparon al borde del bosque. Nadie volvió. Encontré sus mochilas, su fogata fría y unas huellas que no son de bota alguna: pezuñas largas, demasiado largas. Lo que camina aquí solo sale de noche.' },
@@ -2492,19 +2613,41 @@
             { title: 'La noche de la niebla', text: 'Libro de la capilla. La noche de la luna negra la niebla bajó tan espesa que el farol de Aldric no la atravesaba. Liora salió al oír pasos y no volvió. Aldric la buscó cuarenta noches sin dormir, llamándola entre los árboles. La aldea rezó por ella y después dejó de buscar. Él no. Aquí se escribió la última línea: «El padre sigue llamando».' },
             { title: 'El pacto del Ciervo Hueco', text: 'Grabado en el altar. En la cuadragésima noche Aldric halló al Ciervo Hueco, el espíritu antiguo del bosque, y le suplicó que le devolviera a su hija. El Ciervo aceptó: «Guardarás mi bosque para siempre y Liora volverá a casa». Aldric aceptó sin leer la letra pequeña. El bosque no devuelve: cobra. Le dio una máscara de asta, un cuerpo hueco y una sola orden: no volver a casa hasta que otro ocupe su puesto.' },
             { title: 'La voz que lo llama', text: 'Nota clavada en un sauce muerto. Así se explica su crueldad: el Ciervo guarda la voz de Liora en la niebla y la usa como cebo. Aldric la oye cada noche pidiéndole que la encuentre, y ataca todo lo que se mueve entre los árboles: desde hace siglos cree que cada guardabosques es quien se la llevó. Las ilusiones que ves —el farol falso, los pasos, el doble— no son suyas: son del Ciervo, que lo mantiene cazando. Liora nunca regresó. Aquí la enterraron, bajo una tumba sin nombre.' },
-            { title: 'Aldric Voss', text: 'Última página, con la letra temblorosa de un hombre que aún recordaba. «Me llamo Aldric Voss, guardián de Valdeniebla y padre de Liora. El bosque me quitó el nombre porque sin él no puedo volver a casa. Tres siglos de noches me enseñaron una cosa: el Ciervo solo manda sobre quien olvida quién es. Si alguien dice mi nombre en voz alta cuando llegue el alba, desde la cabaña donde ardía mi farol, quizá la voz de mi hija deje de ser un cebo y vuelva a ser ella.» Esta noche, resiste hasta el amanecer y di su nombre.' }
+            { title: 'Aldric Voss', text: 'Última página, con la letra temblorosa de un hombre que aún recordaba. «Me llamo Aldric Voss, guardián de Valdeniebla y padre de Liora. El bosque me quitó el nombre porque sin él no puedo volver a casa. Tres siglos de noches me enseñaron una cosa: el Ciervo solo manda sobre quien olvida quién es. Si alguien dice mi nombre en voz alta cuando llegue el alba, desde la cabaña donde ardía mi farol, quizá la voz de mi hija deje de ser un cebo y vuelva a ser ella.» Esta noche, resiste hasta el amanecer y di su nombre.' },
+            // --- Capítulo 3: Archivos de la Grieta ---
+            { title: 'El eco sin máscara', text: 'Texto tallado en ceniza caliente sobre el monolito. Cuando dijiste el nombre de Aldric Voss, el hombre escapó hacia la luz... pero dejaste desnudo al Ciervo Hueco. Sin su marioneta, la criatura despertó de tres siglos de letargo y se miró por primera vez: ahora sabe lo que es, sabe que el pacto se rompió y sabe exactamente quién eres tú. El bosque entero empezó a oscurecerse desde esa misma hora.' },
+            { title: 'La grieta en la corteza', text: 'Hoja medio quemada dentro de la raíz hueca. El aire tiembla como cristal roto. Los árboles parpadean, el cielo sangra y la luz del sol ya no atraviesa las copas. El Ciervo Hueco ya no busca otro guardabosques ni imita voces de niños: ha rasgado la piel del mundo para cazar al único testigo que conoce su secreto. Incluso de día puede abrir una brecha y salir a por ti.' },
+            { title: 'Tu nombre bajo el óxido', text: 'Registro arrancado del mirador. En la viga principal encontraste tu propio nombre grabado cientos de veces, superpuesto como un error que se repite sin fin. Ya no finge congelarse cuando lo miras: sostenerle la vista lo enfurece y lo lanza contra ti. Las puertas sin tablas ceden en la mitad de tiempo y la linterna apenas lo frena.' },
+            { title: 'La verdad del hambre', text: 'Inscripción de la cripta profunda. Todas las ilusiones, los fallos en tu visión y los susurros entre la niebla eran ensayos del Ciervo para borrar tu mente antes que tu cuerpo. Al quedarse sin recipiente humano, el monstruo se devora a sí mismo y consume el bosque con él. Solo hay un modo de apagarlo para siempre: alcanzar su Núcleo y sobrevivir al último colapso en la cabaña.' },
+            { title: 'Noche de la Grieta', text: 'Último sello roto sobre el Núcleo del Ciervo. «Ya no hay máscara. Ya no hay niebla donde esconderme. Sé qué soy, y tú sabes demasiado.» El cielo se fractura en rojo y negro. Al arrancar el último sello, la trampa del Núcleo se cierra sobre ti: las garras del Ciervo Hueco rasgan el aire y caes fuera de la realidad.' },
+            // --- Capítulo 4: Los Backrooms (Nivel 0) ---
+            { title: 'Fuera de la realidad', text: 'Hoja mojada sobre una caja vacía, bajo el zumbido constante de los fluorescentes. Si estás leyendo esto es que el Ciervo Hueco no te mató en el bosque: al desgarrarte en el Núcleo rompiste el suelo del mundo y caíste aquí. Alfombra húmeda, papel tapiz amarillo con olor a sótano viejo y seiscientos millones de kilómetros de pasillos idénticos. Pero no caíste solo.' },
+            { title: 'El zumbido amarillo', text: 'Nota pegada a una columna. Llevo horas contando los paneles del techo. Hay zonas donde las luces parpadean y otras donde el pasillo queda a oscuras. Quien camina bajo las lámparas conserva la mente un poco más entera; en la penumbra, el zumbido te muerde los nervios. Escucha las esquinas antes de doblar: aquí algo alto arrastra las pezuñas sobre la alfombra mojada.' },
+            { title: 'Cajas de otro tiempo', text: 'Registro escrito en la esquina de una mesa podrida. No sé cómo llegaron estas cajas ni esta fogata apagada aquí abajo. Quizá otros guardabosques también atravesaron la grieta antes que yo. La puerta del bosque ya no existe, pero la llama y el flash de la cámara siguen frenando a la bestia: también aquí le duele la luz concentrada.' },
+            { title: 'El sector carmesí', text: 'Papel arrancado, manchado de humedad roja. Cuando el papel amarillo se tiñe de rojo, el Nivel 0 se está pudriendo por dentro. Es la huella del Ciervo Hueco intentando reconstruirse dentro de los Backrooms. Solo falta un punto más en estos pasillos: busca el umbral verde de salida al norte antes de que el laberinto se cierre contigo dentro.' },
+            { title: 'La puerta verde', text: 'Última hoja, clavada junto a un marco iluminado de verde. «Noclip inverso · Salida de emergencia.» Al tocar esta página sientes aire frío de pino detrás de las paredes amarillas y el zumbido eléctrico se apaga de golpe. Detrás del umbral espera de nuevo el cielo abierto: has cruzado los Backrooms y has salido con vida.' }
         ];
         const EPILOGUE = 'El sol rompe entre los árboles y el Errante se deshace en la niebla, como un mal sueño. En el círculo queda la huella de un ciervo... y el diario de tu tío, completo. El bosque guarda silencio. Por esta vez, la maldición terminó. Pero en la puerta de la cabaña ya hay un nombre nuevo grabado: el tuyo.';
 
         const EPILOGUE2 = 'Al amanecer, desde la cabaña, dijiste su nombre en voz alta: Aldric Voss. Los pasos se detuvieron. Entre la niebla ya no había un ciervo de cabeza hueca, sino un hombre cansado con un farol apagado en la mano y, a su lado, por primera vez en trescientos años, una niña que le tomó la mano. La máscara de asta cayó entre las hojas. El farol de la cabaña ardió una vez más, esta vez sin miedo, y los dos caminaron hacia la luz hasta desvanecerse. Cuando el bosque volvió a callar, no era el silencio de antes: era descanso. El Ciervo Hueco sigue ahí, esperando un nuevo guardián... pero el Errante ya no. Y en la puerta, bajo tu nombre, alguien grabó otro: «gracias».';
-        const pageLabel = (i) => i < CH1_PAGES ? `PÁGINA ${i + 1}/${CH1_PAGES}` : `FRAGMENTO ${i - CH1_PAGES + 1}/${CH2_PAGES}`;
-        function monsterLore() {   // lo que ya sabes del Errante según los fragmentos del capítulo 2 que has leído
+
+        const EPILOGUE3 = 'El Ciervo Hueco te destrozó en su Núcleo... pero el golpe partió el suelo del mundo y te arrojó a un espacio amarillo interminable bajo luces fluorescentes.';
+
+        const EPILOGUE4 = 'Cruzas el umbral verde mientras el zumbido eléctrico de los Backrooms se apaga a tu espalda. El papel amarillo y la alfombra húmeda quedan atrás; el aire frío del mundo real vuelve a llenarte los pulmones y ni siquiera la sombra del Ciervo Hueco puede seguirte fuera del laberinto. Has sobrevivido al bosque, a la grieta y al Nivel 0.';
+
+        const pageLabel = (i) => i < CH1_PAGES ? `PÁGINA ${i + 1}/${CH1_PAGES}` : (i < CH1_PAGES + CH2_PAGES ? `FRAGMENTO ${i - CH1_PAGES + 1}/${CH2_PAGES}` : (i < CH1_PAGES + CH2_PAGES + CH3_PAGES ? `FRACTURA ${i - CH1_PAGES - CH2_PAGES + 1}/${CH3_PAGES}` : `NIVEL 0 · ${i - CH1_PAGES - CH2_PAGES - CH3_PAGES + 1}/${CH4_PAGES}`));
+        function monsterLore() {   // lo que ya sabes del Errante / Ciervo Hueco según los fragmentos leídos
             const L = [];
             if (nextPage > 7) L.push('<p><b>Su verdadero nombre:</b> Aldric Voss, leñador viudo y primer guardabosques de Valdeniebla hace trescientos años. No nació monstruo: nació hombre.</p>');
             if (nextPage > 8) L.push('<p><b>Su pérdida:</b> la noche de la luna negra su hija Liora, de ocho años, se perdió en la niebla. Él la buscó cuarenta noches.</p>');
             if (nextPage > 9) L.push('<p><b>El pacto:</b> el Ciervo Hueco, espíritu antiguo del bosque, le prometió devolverla a cambio de guardar el bosque para siempre. El bosque no devuelve: cobra. Le dio una máscara de asta y un cuerpo hueco.</p>');
             if (nextPage > 10) L.push('<p><b>Por qué es cruel:</b> el Ciervo guarda la voz de Liora en la niebla como cebo. Aldric la oye cada noche y ataca todo lo que se mueve, convencido de que cada guardabosques es quien se la llevó. Las ilusiones del bosque son obra del Ciervo, no suyas.</p>');
-            if (nextPage > 11) L.push('<p><b>Cómo liberarlo:</b> decir su nombre en voz alta al amanecer, junto al farol de la cabaña, le recuerda quién es y rompe el dominio del Ciervo.</p>');
+            if (nextPage > 11) L.push('<p><b>Cómo liberar a Aldric:</b> decir su nombre en voz alta al amanecer, junto al farol de la cabaña, le recuerda quién es y rompe el dominio del Ciervo.</p>');
+            if (nextPage > 12) L.push('<p><b>El despertar (Capítulo 3):</b> tras liberar a Aldric, el Ciervo Hueco quedó al descubierto, tomó conciencia de su propia identidad y te reconoció como quien destruyó su ciclo.</p>');
+            if (nextPage > 13) L.push('<p><b>La fractura del mundo:</b> el bosque se volvió más oscuro y la realidad se rompe con fallos por todas partes; el monstruo puede abrir brechas incluso de día.</p>');
+            if (nextPage > 14) L.push('<p><b>Furia absoluta:</b> ya no se queda inmóvil si lo miras —mirarlo lo enfurece—, rompe puertas sin tablas al doble de velocidad y apenas cede ante la linterna.</p>');
+            if (nextPage > 15) L.push('<p><b>Su punto débil final:</b> sigue respetando las fogatas encendidas, los territorios sagrados, las puertas reforzadas con tablas y el flash de la cámara (aunque se recupera más rápido).</p>');
+            if (nextPage > 16) L.push('<p><b>El Núcleo y el Noclip (Cap. 4):</b> al llegar al Núcleo el Ciervo Hueco te desgarró y caíste fuera de la realidad hacia Los Backrooms, aunque también él logró seguirte entre los pasillos amarillos.</p>');
             return L.join('');
         }
         const nearAnySite = (x, z, r) => STORY_SITES.some(s => Math.hypot(s.x - x, s.z - z) < r);
@@ -2514,9 +2657,9 @@
         let pendingHint = false;
         // Los primeros 5 días no hay flechas, distancias ni coordenadas: solo pistas del lugar. Al pasar los 5 días (día 6) el diario muestra el rumbo.
         const GUIDE_DAY = 6, SCRATCH_DAY = 5;
-        const storyGuideOn = () => daysPlayed >= GUIDE_DAY || chapter === 2;
+        const storyGuideOn = () => daysPlayed >= GUIDE_DAY || chapter >= 2;
         // Día en que el diario revela la ubicación de cada página: hasta entonces su página NO aparece en el mundo (ni se puede recoger)
-        const PAGE_REVEAL_DAYS = [1, 2, 3, 5, 7, 9, 10, 0, 0, 0, 0, 0];   // los 5 últimos (capítulo 2) se fijan al empezarlo
+        const PAGE_REVEAL_DAYS = [1, 2, 3, 5, 7, 9, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];   // capítulos 2, 3 y 4 se fijan al empezarlos
         const pageAvailable = () => nextPage < TOTAL_PAGES && daysPlayed >= PAGE_REVEAL_DAYS[nextPage];
         let pendingGuide = false, pendingOmen = 0, pendingReveal = 0, scratchSeen = false;
         const SITE_CLUES = {
@@ -2531,7 +2674,17 @@
             chapel:    'Una capilla en ruinas con bancos podridos y un altar de piedra. Aquí se escribió la crónica de la aldea',
             altar:     'Un círculo de troncos muertos y un altar con astas negras. El bosque pide algo en este lugar',
             tomb:      'Una tumba pequeña, sin nombre, bajo un sauce muerto y una valla rota',
-            tower:     'Una torre de piedra con una linterna en lo alto. Desde aquí ardía el farol que guiaba a la aldea'
+            tower:     'Una torre de piedra con una linterna en lo alto. Desde aquí ardía el farol que guiaba a la aldea',
+            shrine:    'Un monolito negro rodeado de piedra quemada y ceniza tibia entre los árboles más oscuros',
+            hollow:    'Una enorme raíz muerta abierta como una boca, entre troncos carbonizados y cofres olvidados',
+            observ:    'Un mirador de madera y piedra quebrado sobre el límite oeste del pantano',
+            crypt:     'Una cripta hundida de ladrillo y piedra cubierta de musgo, con antorchas apagadas en la entrada',
+            nexus:     'Un santuario de pilares carbonizados con runas rojas en el suelo: el núcleo donde late el Ciervo Hueco',
+            br_lobby:   'Una sala amplia de papel amarillo húmedo con cajas olvidadas al este del inicio',
+            br_pillar:  'Un cruce rodeado de columnas y zumbido eléctrico al noroeste del Nivel 0',
+            br_office:  'Una oficina sin ventanas con restos de alguien que intentó encender fuego en la alfombra',
+            br_redroom: 'El sector carmesí: paredes amarillas teñidas de rojo donde late la infección del Ciervo',
+            br_exit:    'Un arco verde luminoso en el extremo norte del Nivel 0: la salida fuera de los Backrooms'
         };
         // Presagios al amanecer (el día 5 se ven los arañazos y el día 6 el diario muestra el rumbo)
         const OMENS = {
@@ -2614,6 +2767,8 @@
             return ex * ex + ez * ez < 1;
         }
         function lakeAt(x, z, m) {   // ¿(x, z) cae dentro de un lago? `m` agranda la orilla (margen)
+            if (Math.abs(x - BKX) < 340 && Math.abs(z - BKZ) < 340) return false;
+            if (Math.abs(x - PKX) < 220 && Math.abs(z - PKZ) < 220) return false;
             const h = getHomeLake();
             if (h && inLake(h, x, z, m)) return true;
             const lk = lakeInCell(Math.floor(x / LAKE_CELL), Math.floor(z / LAKE_CELL));
@@ -2829,7 +2984,7 @@
         const _fireSort = [];
         function fireCovered(f) {   // ¿hay techo u hojas sobre la llama? (a cubierto, la lluvia no la apaga)
             const x = Math.floor(f.x + 0.5), z = Math.floor(f.z + 0.5), y0 = Math.floor((f.y === undefined ? GROUND : f.y) + 0.5);
-            for (let y = y0 + 1; y <= y0 + 10; y++) { const id = blockAt(x, y, z); if (id > 0 && id < 40 && id !== B.INVIS) return true; }
+            for (let y = y0 + 1; y <= y0 + 10; y++) { const id = blockAt(x, y, z); if (isSolidId(id) && id !== B.INVIS) return true; }
             return false;
         }
         function douseFire(f, d) {   // la lluvia apaga una llama al aire libre
@@ -3280,6 +3435,122 @@
                 dec.lantern(x + 1, z + 1); dec.lantern(x - 1, z + 1);
                 dec.supply(x - 1, z + 1, 'tower' + x);
                 dec.chest(x, z - 2, 'site_tower' + x, 2, undefined, 0);
+            },
+            // ---- Capítulo 3 ----
+            shrine(s, set, dec) {   // monolito de ceniza y pilares carbonizados
+                const { x, z } = s;
+                for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+                    if (Math.hypot(dx, dz) < 2.6) set(x + dx, 0, z + dz, B.CHARRED);
+                }
+                for (let y = 1; y <= 6; y++) set(x, y, z - 2, y > 4 ? B.STONE : B.CHARRED);
+                for (const [dx, dz] of [[-3, 1], [3, 1], [-2, -3], [2, -3]]) {
+                    for (let y = 1; y <= 3; y++) set(x + dx, y, z + dz, B.DEAD_LOG);
+                }
+                dec.runes(x, z, 0.52);
+                dec.bones(x - 2, z + 2);
+                dec.supply(x + 2, z + 2, 'shrine' + x);
+                dec.chest(x - 2, z - 1, 'site_shrine' + x, 2, undefined, 0);
+            },
+            hollow(s, set, dec) {   // raíz gigante partida en dos sobre suelo quemado
+                const { x, z } = s;
+                for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+                    const edge = Math.abs(dx) === 3 || Math.abs(dz) === 3;
+                    if (!edge) continue;
+                    if (dz === 3 && Math.abs(dx) <= 1) continue;
+                    const h = 3 + ((dx + dz) & 1);
+                    for (let y = 1; y <= h; y++) set(x + dx, y, z + dz, y === 1 ? B.CHARRED : B.DEAD_LOG);
+                }
+                for (let dx = -2; dx <= 2; dx++) set(x + dx, 4, z - 2, B.DEAD_LOG);
+                dec.lantern(x + 2, z + 2);
+                dec.supply(x - 2, z + 2, 'hollow' + x);
+                dec.chest(x + 2, z - 2, 'site_hollow' + x, 2, undefined, 0);
+            },
+            observ(s, set, dec) {   // mirador quebrado de piedra y madera
+                const { x, z } = s;
+                for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+                    set(x + dx, 0, z + dz, B.COBBLE);
+                    if (Math.abs(dx) === 2 && Math.abs(dz) === 2) {
+                        for (let y = 1; y <= 5; y++) set(x + dx, y, z + dz, B.OAK_LOG);
+                    }
+                }
+                for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+                    if (hash2(x + dx, z + dz, 360) < 0.78) set(x + dx, 5, z + dz, B.PLANKS);
+                }
+                dec.lantern(x - 1, z + 2);
+                dec.supply(x + 2, z + 3, 'observ' + x);
+                dec.chest(x - 1, z - 1, 'site_observ' + x, 2, undefined, 0);
+            },
+            crypt(s, set, dec) {   // cripta de piedra con pasillo central
+                const { x, z } = s;
+                for (let dx = -3; dx <= 3; dx++) for (let dz = -4; dz <= 4; dz++) {
+                    const edge = Math.abs(dx) === 3 || Math.abs(dz) === 4;
+                    if (!edge) { set(x + dx, 0, z + dz, B.COBBLE); continue; }
+                    if (dz === 4 && dx === 0) continue;
+                    const h = dz === -4 ? 4 : 3;
+                    for (let y = 1; y <= h; y++) set(x + dx, y, z + dz, (dx + y) % 3 === 0 ? B.MOSSY : B.STONE);
+                }
+                set(x, 1, z - 2, B.GRAVE);
+                dec.bones(x - 2, z + 2);
+                dec.lantern(x + 1, z + 3);
+                dec.supply(x - 2, z - 2, 'crypt' + x);
+                dec.chest(x + 2, z - 2, 'site_crypt' + x, 2, undefined, 0);
+            },
+            nexus(s, set, dec) {   // núcleo del ciervo: doble anillo carbonizado y altar central
+                const { x, z } = s;
+                for (let k = 0; k < 8; k++) {
+                    const a = k * Math.PI / 4, sx = Math.round(Math.cos(a) * 6), sz = Math.round(Math.sin(a) * 6);
+                    for (let y = 1; y <= 4 + (k % 2); y++) set(x + sx, y, z + sz, k % 2 ? B.CHARRED : B.STONE);
+                }
+                for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+                    set(x + dx, 0, z + dz, B.CHARRED);
+                    set(x + dx, 1, z + dz, B.STONE);
+                }
+                for (const [dx, dz] of [[4, 4], [-4, 4], [4, -4], [-4, -4]]) dec.fire(x + dx, z + dz, true);
+                dec.runes(x, z, 1.52);
+                dec.bones(x - 3, z + 1);
+                dec.supply(x + 2, z + 4, 'nexus' + x);
+            },
+            br_lobby(s, set, dec) {   // recepción húmeda de Los Backrooms
+                const { x, z } = s;
+                set(x - 2, 1, z - 2, B.CRATE); set(x + 2, 1, z - 2, B.CRATE);
+                dec.supply(x - 1, z + 2, 'br_lobby' + x);
+                dec.chest(x + 2, z + 2, 'site_br_lobby', 2, undefined, 0);
+            },
+            br_pillar(s, set, dec) {   // sala de las columnas amarillas
+                const { x, z } = s;
+                for (const [dx, dz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) {
+                    for (let y = 1; y <= 5; y++) set(x + dx, y, z + dz, B.BR_WALL);
+                }
+                dec.fire(x, z - 2, false);
+                dec.chest(x + 1, z + 2, 'site_br_pillar', 2, undefined, 0);
+            },
+            br_office(s, set, dec) {   // oficina sin ventanas abandonada
+                const { x, z } = s;
+                set(x - 2, 1, z, B.PLANKS); set(x - 2, 1, z + 1, B.CRATE);
+                set(x + 2, 1, z - 1, B.CRATE);
+                dec.fire(x + 2, z + 2, false);
+                dec.supply(x, z + 2, 'br_office' + x);
+                dec.chest(x - 2, z - 2, 'site_br_office', 2, undefined, 0);
+            },
+            br_redroom(s, set, dec) {   // sector carmesí infectado por el Ciervo Hueco
+                const { x, z } = s;
+                for (const [dx, dz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) {
+                    for (let y = 1; y <= 5; y++) set(x + dx, y, z + dz, B.BR_REDWALL);
+                }
+                dec.runes(x, z, 0.52);
+                dec.bones(x - 2, z + 1);
+                dec.chest(x + 2, z + 2, 'site_br_redroom', 2, undefined, 0);
+            },
+            br_exit(s, set, dec) {   // arco verde luminoso de salida
+                const { x, z } = s;
+                for (let y = 1; y <= 4; y++) {
+                    set(x - 1, y, z - 2, B.BR_EXIT);
+                    set(x + 1, y, z - 2, B.BR_EXIT);
+                }
+                set(x, 4, z - 2, B.BR_EXIT);
+                set(x, 1, z - 2, 0); set(x, 2, z - 2, 0); set(x, 3, z - 2, 0);
+                dec.lantern(x, z - 1);
+                dec.supply(x - 2, z + 2, 'br_exit' + x);
             }
         };
 
@@ -3509,6 +3780,49 @@
                 set(x, ce, z, edge ? B.OAK_LOG : (L >= 3 ? B.WOOLB : B.CLOTH));
             }
         }
+        const BR_SITE_CELLS = new Set(['0,0', '4,0', '-4,-3', '5,5', '-6,5', '0,-7']);
+        function buildBackroomChunk(cx, cz, set) {   // Nivel 0: laberinto conectado de 6x6 con fluorescentes, sector carmesí y salida
+            const x0 = cx * CS, z0 = cz * CS;
+            for (let lz = 0; lz < CS; lz++) {
+                for (let lx = 0; lx < CS; lx++) {
+                    const wx = x0 + lx, wz = z0 + lz;
+                    const gx = Math.floor((wx - BKX) / BR_CELL), gz = Math.floor((wz - BKZ) / BR_CELL);
+                    const rx = ((wx - BKX) % BR_CELL + BR_CELL) % BR_CELL;
+                    const rz = ((wz - BKZ) % BR_CELL + BR_CELL) % BR_CELL;
+                    const siteCell = BR_SITE_CELLS.has(gx + ',' + gz);
+                    const crimson = gx <= -4 && gz >= 3;
+                    const wallId = crimson ? B.BR_REDWALL : B.BR_WALL;
+
+                    set(wx, -2, wz, B.STONE);
+                    set(wx, -1, wz, B.STONE);
+                    set(wx, 0, wz, B.BR_CARPET);
+
+                    // Techo acústico en y = 6 con paneles fluorescentes en el centro de casi cada sala
+                    const hasLamp = siteCell || hash2(gx, gz, 405) > 0.14;
+                    const isLamp = hasLamp && (rx === 2 || rx === 3) && (rz === 2 || rz === 3);
+                    set(wx, 6, wz, isLamp ? B.BR_LIGHT : B.BR_CEIL);
+
+                    // Conectividad garantizada (árbol binario + bucles): siempre hay paso hacia N o O
+                    const hDir = hash2(gx, gz, 401);
+                    const openW = siteCell || hDir >= 0.5 || hash2(gx, gz, 404) < 0.28;
+                    const openN = siteCell || hDir < 0.5 || hash2(gx, gz, 403) < 0.28;
+                    let isWall = false;
+                    if (rx === 0 && !(openW && rz >= 2 && rz <= 4)) isWall = true;
+                    if (rz === 0 && !(openN && rx >= 2 && rx <= 4)) isWall = true;
+                    if (!siteCell && rx === 3 && rz === 3 && hash2(gx, gz, 402) < 0.22) isWall = true;
+
+                    if (isWall) {
+                        for (let y = 1; y <= 5; y++) set(wx, y, wz, wallId);
+                    }
+                }
+            }
+            const cxm = x0 + CS / 2, czm = z0 + CS / 2;
+            for (const s of STORY_SITES) {
+                if (s.type.startsWith('br_') && Math.abs(s.x - cxm) < CS / 2 + 12 && Math.abs(s.z - czm) < CS / 2 + 12) {
+                    SITE_BUILDERS[s.type](s, set, NOOP_DEC);
+                }
+            }
+        }
         function generateChunk(cx, cz) {
             const x0 = cx * CS, z0 = cz * CS;
             const data = new Uint8Array(CS * CS * CH);
@@ -3530,6 +3844,12 @@
                 if (cx === POCKET.cx && cz === POCKET.cz) buildPocketRoom(set);
                 const edp = edits.get(chunkKey(cx, cz));
                 if (edp) for (const [idx, id] of edp) { data[idx] = id; if (id && (idx >> 8) > top[idx & 255]) top[idx & 255] = idx >> 8; }
+                return { cx, cz, data, top, mesh: null, plantMesh: null, decor: null, meshed: false, fireKeys: [] };
+            }
+            if (isBackroomChunk(cx, cz)) {   // zona del Capítulo 4 (Los Backrooms): pasillos amarillos sin bosque ni cielo
+                buildBackroomChunk(cx, cz, set);
+                const edb = edits.get(chunkKey(cx, cz));
+                if (edb) for (const [idx, id] of edb) { data[idx] = id; if (id && (idx >> 8) > top[idx & 255]) top[idx & 255] = idx >> 8; }
                 return { cx, cz, data, top, mesh: null, plantMesh: null, decor: null, meshed: false, fireKeys: [] };
             }
 
@@ -3676,7 +3996,7 @@
                 if (ly >= CH) return 0;
                 return c.data[(ly * CS + (z & 15)) * CS + (x & 15)];
             };
-            const opaque = (x, y, z) => { const id = blockAt(x, y, z); return id > 0 && id < 40 && id !== B.INVIS; };
+            const opaque = (x, y, z) => { const id = blockAt(x, y, z); return isSolidId(id) && id !== B.INVIS; };
 
             const P = [], N = [], U = [], C = [], I = [];
             const pP = [], pN = [], pU = [], pC = [], pI = [];
@@ -3690,7 +4010,7 @@
                         const y = ly + Y0;
                         const wx = x0 + lx, wz = z0 + lz;
 
-                        if (id >= 40) {   // plantas: dos planos cruzados, caras en ambos sentidos
+                        if (isPlantId(id)) {   // plantas: dos planos cruzados, caras en ambos sentidos
                             const uv = tileUV(PLANT_TILE[id]);
                             const jx = (hash2(wx, wz, 120) - 0.5) * 0.35, jz = (hash2(wx, wz, 121) - 0.5) * 0.35;
                             const hs = (id === B.P_GRASS || id === B.P_REED) ? 0.55 + hash2(wx, wz, 122) * 0.45 : 1;
@@ -3735,7 +4055,8 @@
                                 N.push(F.n[0], F.n[1], F.n[2]);
                                 const kr = (k + rot) & 3;
                                 U.push(kr === 0 || kr === 3 ? uv[0] : uv[1], kr < 2 ? uv[2] : uv[3]);
-                                const sh = F.shade * AO_LEVELS[ao[k]] * tint;
+                                const em = id === B.BR_LIGHT ? 2.2 : (id === B.BR_EXIT ? 1.75 : 1);
+                                const sh = Math.min(2.3, F.shade * AO_LEVELS[ao[k]] * tint * em);
                                 C.push(sh, sh, sh);
                             }
                             if (ao[0] + ao[2] > ao[1] + ao[3]) I.push(base, base + 1, base + 2, base, base + 2, base + 3);
@@ -3763,10 +4084,15 @@
             chunk.decor = new THREE.Group();
             scene.add(chunk.decor);
             if (isPocketChunk(chunk.cx, chunk.cz)) return;   // la casa de acampar no lleva lagos, rutas ni lugares
+            const owns = (p) => Math.floor(p.x / CS) === chunk.cx && Math.floor(p.z / CS) === chunk.cz;
+            if (isBackroomChunk(chunk.cx, chunk.cz)) {
+                const api = makeDecorApi(chunk);
+                for (const s of STORY_SITES) if (s.type.startsWith('br_') && owns(s)) SITE_BUILDERS[s.type](s, NOOP_SET, api);
+                return;
+            }
             buildWaterOverlay(chunk);
             const api = makeDecorApi(chunk);
             const x0 = chunk.cx * CS, z0 = chunk.cz * CS;
-            const owns = (p) => Math.floor(p.x / CS) === chunk.cx && Math.floor(p.z / CS) === chunk.cz;
             for (const s of STORY_SITES) if (owns(s)) SITE_BUILDERS[s.type](s, NOOP_SET, api);
             for (let rx = Math.floor(x0 / REGION); rx <= Math.floor((x0 + CS - 1) / REGION); rx++) {
                 for (let rz = Math.floor(z0 / REGION); rz <= Math.floor((z0 + CS - 1) / REGION); rz++) {
@@ -3796,7 +4122,7 @@
         function isSolid(x, y, z) {
             if (x === 0 && z === 3 && (y === 1 || y === 2) && door.state === 'closed') return true;
             const id = blockAt(x, y, z);
-            return id > 0 && id < 40;
+            return isSolidId(id);
         }
 
         // --- Gestión de chunks alrededor del jugador ---
@@ -3890,6 +4216,9 @@
             if (nextPage >= TOTAL_PAGES) { pageObj.group.visible = false; return; }
             const s = STORY_SITES[nextPage];
             pageObj.group.position.set(s.x, s.pageY, s.z);
+            const isBr = s.type && s.type.startsWith('br_');
+            pageObj.beam.scale.y = isBr ? 0.065 : 1;
+            pageObj.beam.position.y = isBr ? 2.25 : 35;
             pageObj.group.visible = pageAvailable();   // la página solo existe desde el día en que se revela su ubicación
         }
         placePageObj();
@@ -4128,6 +4457,7 @@
 
         // Cada fotograma: muestra lo que toca según el día y dispara el susto la primera vez que ves los arañazos
         function updateStoryProps() {
+            if (inBackrooms()) { scratchMesh.visible = hoof1.visible = hoof2.visible = false; return; }
             scratchMesh.visible = daysPlayed >= SCRATCH_DAY;
             hoof1.visible = daysPlayed >= 3; hoof2.visible = daysPlayed >= 7;
             if (!scratchMesh.visible || scratchSeen || !started || gameEnded || finalNight || sleepCine.active || scare.active) return;
@@ -5046,7 +5376,7 @@
         const guidePanel = $('guide-panel');
         let guideOpen = false, guideTab = 'mech', guideMat = 'where', guideEnc = 'items', guideStoryCat = 'all', guideQuery = '';
         const GUIDE_TABS = [['story', '📜 Historia'], ['mech', '⚙️ Mecánicas'], ['mats', '🧭 Materiales'], ['enc', '📚 Enciclopedia']];
-        const STORY_CATS = [['all', '📜 Todo'], ['diary', '📖 Diario de Elías'], ['c2', '🦌 Crónicas del Errante'], ['notes', '🗒️ Notas y Relatos']];
+        const STORY_CATS = [['all', '📜 Todo'], ['diary', '📖 Diario de Elías'], ['c2', '🦌 Errante C2'], ['c3', '🩸 Fractura C3'], ['c4', '🟨 Backrooms C4'], ['notes', '🗒️ Notas y Relatos']];
         const gdNorm = (t) => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         const gdDet = (ic, title, body, open, sub) => `<details class="gd"${open ? ' open' : ''}><summary><span class="gd-ic">${ic}</span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</summary><div class="gd-in">${body}</div></details>`;
         const gdChip = (k, n) => `<span class="chip${haveMat(k) >= n ? '' : ' no'}">${icon(k)} ${ITEMS[k][1]} ${haveMat(k) || 0}/${n}</span>`;
@@ -5106,8 +5436,8 @@
                 ['🎣', 'Pesca, agua y balde', `<p><b>Caña</b> (palos + fibra, en la mesa): apunta a un lago y clic dcho. para lanzar. Espera 4-12 s (menos con lluvia); cuando la boya se hunda tienes 1,2 s para volver a pulsar. Cada captura gasta 1 uso (${TOOL_USES.rod}). Botín: 70 % un pez, 18 % dos, 6 % fibra, 6 % un hueso viejo.</p>
                     <p><b>Balde</b> (tablas + fibra): llénalo apuntando al agua; vierte con clic dcho. para regar parcelas o apagar llamas colocadas.</p>
                     <p><b>Nadar:</b> el centro de los lagos es profundo; la orilla es somera. Espacio sube, Shift baja, y avanzar mirando arriba o abajo te hace bucear. Salta desde la superficie para salir a la orilla. La criatura no entra en el agua.</p>`],
-                ['📜', 'Historia y páginas', `<p>Hay <b>${CH1_PAGES} páginas</b> del diario de Elías. Cada una <b>solo aparece el día en que el diario revela su ubicación</b>: ${revs}. Hasta ese día no existe en el mundo; el objetivo te dice cuándo se revela la siguiente (duerme o espera al amanecer). Al ganar puedes elegir <b>Continuar · Capítulo 2</b>: 5 fragmentos más (cabaña del primer guardabosques, capilla, altar, tumba y torre) que revelan el nombre y la historia del Errante.</p>
-                    <p>Los primeros ${GUIDE_DAY - 1} días solo hay pistas del lugar. Desde el día ${GUIDE_DAY} el diario muestra el rumbo, la distancia y las coordenadas, y un haz rojo marca cada página. Con la última página cae la noche final: resiste hasta el amanecer.</p>
+                ['📜', 'Historia y páginas', `<p>Hay <b>${CH1_PAGES} páginas</b> del diario de Elías. Cada una <b>solo aparece el día en que el diario revela su ubicación</b>: ${revs}. Hasta ese día no existe en el mundo; el objetivo te dice cuándo se revela la siguiente (duerme o espera al amanecer). Al ganar puedes elegir <b>Continuar · Capítulo 2</b> (5 fragmentos sobre Aldric Voss), el <b>Capítulo 3</b> (5 fragmentos de la fractura del Ciervo Hueco, cuyo final te arrastra fuera de la realidad) y el <b>Capítulo 4 · Los Backrooms</b> (5 notas en el Nivel 0 hasta la Puerta Verde).</p>
+                    <p>Los primeros ${GUIDE_DAY - 1} días solo hay pistas del lugar. Desde el día ${GUIDE_DAY} el diario muestra el rumbo, la distancia y las coordenadas, y un haz rojo marca cada página. En los Backrooms las luces fluorescentes del techo protegen tu cordura, pero el monstruo patrulla los pasillos amarillos.</p>
                     <p><b>Objetivo actual:</b> ${ui.objective._t || 'ninguno'}<br><small>El letrero del objetivo se oculta solo a los ${OBJ_SHOW_MS / 1000} s; la tecla O lo muestra otra vez.</small></p>`]
             ];
             return S.map(([ic, t, b], i) => gdDet(ic, t, b, i === 0)).join('');
@@ -5293,11 +5623,12 @@
             }
 
             // Capítulo 2: Crónicas del Errante
+            const c2End = Math.min(TOTAL_PAGES, CH1_PAGES + CH2_PAGES);
             if (chapter >= 2) {
                 if (EPILOGUE) push('c2', '🌅', 'Epílogo · Capítulo 1', 'completado ✅', `<div class="gd-quote">${EPILOGUE}</div>`, false);
                 const lore = monsterLore();
-                if (lore) push('c2', '🦌', 'Lo que sabes de Aldric Voss (El Errante)', 'resumen', lore, true);
-                for (let i = CH1_PAGES; i < TOTAL_PAGES; i++) {
+                if (lore) push('c2', '🦌', 'Archivo del Errante y el Ciervo Hueco', 'resumen', lore, chapter === 2);
+                for (let i = CH1_PAGES; i < c2End; i++) {
                     const got = i < nextPage;
                     const st = STORY_SITES[i];
                     const shown = daysPlayed >= PAGE_REVEAL_DAYS[i];
@@ -5315,6 +5646,49 @@
                 push('c2', '🔒', 'Capítulo 2 · Crónicas del Errante', 'bloqueado', `<p>Recoge las ${CH1_PAGES} páginas del Diario de Elías y sobrevive a la noche final para desbloquear los 5 fragmentos sobre la verdadera historia del Errante.</p>`, false);
             }
 
+            // Capítulo 3: Archivos de la Grieta
+            const c3End = Math.min(TOTAL_PAGES, CH1_PAGES + CH2_PAGES + CH3_PAGES);
+            if (chapter >= 3) {
+                if (EPILOGUE2) push('c3', '🌅', 'Epílogo · Capítulo 2 (Aldric descansa)', 'completado ✅', `<div class="gd-quote">${EPILOGUE2}</div>`, false);
+                for (let i = CH1_PAGES + CH2_PAGES; i < c3End; i++) {
+                    const got = i < nextPage;
+                    const st = STORY_SITES[i];
+                    const shown = daysPlayed >= PAGE_REVEAL_DAYS[i];
+                    const num = i - CH1_PAGES - CH2_PAGES + 1;
+                    if (got) {
+                        const body = `<div class="gd-quote">${STORY[i].text}</div><small>📍 Encontrada en: ${st.name}</small><button type="button" class="gd-story-btn" data-read-page="${i}">📜 Ver en nota grande</button>`;
+                        push('c3', '🩸', `Fractura ${num}/${CH3_PAGES} · ${STORY[i].title}`, 'recogida ✅', body, i === nextPage - 1);
+                    } else if (shown) {
+                        push('c3', '🔥', `Fractura ${num}/${CH3_PAGES} · Por recoger`, `revelado · ${st.name}`, `<p><b>Pista:</b> ${SITE_CLUES[st.type]}.</p><small>📍 Coordenadas: X ${st.x} · Z ${st.z}</small>`, i === nextPage);
+                    } else {
+                        push('c3', '❓', `Fractura ${num}/${CH3_PAGES} · Sin revelar`, `día ${PAGE_REVEAL_DAYS[i]}`, `<p>Este fragmento se revelará en el <b>día ${PAGE_REVEAL_DAYS[i]}</b>.</p>`, false);
+                    }
+                }
+            } else {
+                push('c3', '🔒', 'Capítulo 3 · La Fractura del Ciervo', 'bloqueado', `<p>Completa el Capítulo 2 para continuar cuando el Ciervo Hueco descubre su identidad, oscurece el bosque y fractura la realidad.</p>`, false);
+            }
+
+            // Capítulo 4: Los Backrooms (Nivel 0)
+            if (chapter >= 4) {
+                if (EPILOGUE3) push('c4', '💥', 'El Noclip · Fin del Capítulo 3', 'completado ✅', `<div class="gd-quote">${EPILOGUE3}</div>`, false);
+                for (let i = CH1_PAGES + CH2_PAGES + CH3_PAGES; i < TOTAL_PAGES; i++) {
+                    const got = i < nextPage;
+                    const st = STORY_SITES[i];
+                    const shown = daysPlayed >= PAGE_REVEAL_DAYS[i];
+                    const num = i - CH1_PAGES - CH2_PAGES - CH3_PAGES + 1;
+                    if (got) {
+                        const body = `<div class="gd-quote">${STORY[i].text}</div><small>📍 Encontrada en: ${st.name}</small><button type="button" class="gd-story-btn" data-read-page="${i}">📜 Ver en nota grande</button>`;
+                        push('c4', '🟨', `Nivel 0 · ${num}/${CH4_PAGES} · ${STORY[i].title}`, 'recogida ✅', body, i === nextPage - 1);
+                    } else if (shown) {
+                        push('c4', '💡', `Nivel 0 · ${num}/${CH4_PAGES} · Por recoger`, `revelado · ${st.name}`, `<p><b>Pista:</b> ${SITE_CLUES[st.type]}.</p><small>📍 Coordenadas: X ${st.x} · Z ${st.z}</small>`, i === nextPage);
+                    } else {
+                        push('c4', '❓', `Nivel 0 · ${num}/${CH4_PAGES} · Sin revelar`, `día ${PAGE_REVEAL_DAYS[i]}`, `<p>Esta nota se revelará en el <b>día ${PAGE_REVEAL_DAYS[i]}</b>.</p>`, false);
+                    }
+                }
+            } else {
+                push('c4', '🔒', 'Capítulo 4 · Los Backrooms (Nivel 0)', 'bloqueado', `<p>Al llegar al Núcleo del Ciervo en el Capítulo 3 serás arrastrado fuera de la realidad hacia los pasillos amarillos del Nivel 0.</p>`, false);
+            }
+
             // Notas y relatos encontrados
             if (scratchSeen) {
                 push('notes', '🩸', 'Marcas en la pared · Día 5', '«I GOT YOU»', `<div class="gd-quote">No son de oso ni de lobo: las uñas dejaron astillas claras en la madera, a la altura de tus ojos. «I GOT YOU». Durante cinco días jugó con las ilusiones. Mañana, cuando caiga la noche, dejará de jugar.</div>`, false);
@@ -5326,7 +5700,8 @@
                 if (TALES[tIdx]) push('notes', '📚', `Relato ${tIdx + 1}/${TALES.length} · ${TALES[tIdx][0]}`, 'biblioteca', `<div class="gd-quote">${TALES[tIdx][1]}</div>`, false);
             }
 
-            const stats = `<div class="gd-note">Páginas recogidas: <b>${Math.min(nextPage, TOTAL_PAGES)}/${TOTAL_PAGES}</b>${chapter >= 2 ? ' · Capítulo 2 activo' : ''} · Notas de cofres: <b>${collectedNotes.size}</b> · Relatos leídos: <b>${shelfRead.size}/${TALES.length}</b>.</div>`;
+            const chapTxt = chapter >= 4 ? ' · Capítulo 4 (Los Backrooms) activo' : (chapter >= 3 ? ' · Capítulo 3 activo' : (chapter >= 2 ? ' · Capítulo 2 activo' : ''));
+            const stats = `<div class="gd-note">Páginas recogidas: <b>${Math.min(nextPage, TOTAL_PAGES)}/${TOTAL_PAGES}</b>${chapTxt} · Notas de cofres: <b>${collectedNotes.size}</b> · Relatos leídos: <b>${shelfRead.size}/${TALES.length}</b>.</div>`;
             return stats + (cards.length ? cards.join('') : '<div class="gd-note">No hay páginas ni notas que coincidan con tu filtro.</div>');
         }
 
@@ -5860,14 +6235,16 @@
 
             tryDispel();
             if (monster.body.visible && _lookDir.dot(_toMonster) > 0.6 && dist < 15) {
-                // Se acostumbra: cada flash seguido aturde menos (3.8 s, 2.9, 2.0, 1.2...). El contador se enfría solo.
-                monsterStunTimer = Math.max(1.2, 3.8 - stunHits * 0.9);
+                // Se acostumbra: cada flash seguido aturde menos (3.8 s, 2.9, 2.0, 1.2...). En el Cap. 3 se recupera antes.
+                monsterStunTimer = chapter >= 3
+                    ? Math.max(1.0, 3.0 - stunHits * 0.7)
+                    : Math.max(1.2, 3.8 - stunHits * 0.9);
                 stunHits++;
                 monsterStunned = true;
                 playSound('monsterScream');
                 setText(ui.cam, '¡ATURDIDO!');
                 setColor(ui.cam, '#2ecc71');
-                glitchPulse = 0.8;
+                glitchPulse = chapter >= 3 ? 1 : 0.8;
             }
         }
 
@@ -5925,7 +6302,7 @@
         const _wxG = new THREE.Color();
         function coveredAbove() {   // ¿hay techo u hojas sobre la cabeza? (la lluvia se atenúa)
             const x = Math.floor(player.position.x + 0.5), z = Math.floor(player.position.z + 0.5), y0 = Math.floor(player.position.y + 0.5);
-            for (let y = y0 + 1; y <= y0 + 12; y++) { const id = blockAt(x, y, z); if (id > 0 && id < 40 && id !== B.INVIS) return true; }
+            for (let y = y0 + 1; y <= y0 + 12; y++) { const id = blockAt(x, y, z); if (isSolidId(id) && id !== B.INVIS) return true; }
             return false;
         }
         function applyWeather(delta) {
@@ -6207,7 +6584,178 @@
         const daySkyColor = new THREE.Color(0x7ec0ee);
         const nightSkyColor = new THREE.Color(0x040814);
         const duskColor = new THREE.Color(0xd9774a);
+        const ch3DaySkyColor = new THREE.Color(0x1b2330);
+        const ch3DuskColor = new THREE.Color(0x4e141b);
+        const ch3NightSkyColor = new THREE.Color(0x030106);
+        const ch3BreachColor = new THREE.Color(0x1c040b);
         const _sky = new THREE.Color();
+
+        // --- Capítulo 3: fallos visuales en el mundo (pool de grietas 3D) y brechas de día ---
+        let ch3GlitchT = 0, ch3BurstT = 0, ch3TearT = 0, ch3CorruptT = 0, ch3BreachCD = 32, ch3DayHunt = 0, ch3SkyFlicker = 0;
+        let ch3HudWasCorrupt = false, ch3LastMoonCh = 0;
+        const CH3_CORRUPT_WORDS = ['▓▒░ NO ESCAPAS ░▒▓', 'SABE QUIÉN ERES', 'EL CIERVO DESPERTÓ', 'ERR_IDENTIDAD_0x3', 'NO HAY REFUGIO'];
+        const CH3_RIFT_N = IS_MOBILE ? 10 : 18;
+        const ch3RiftMatRed = new THREE.MeshBasicMaterial({ color: 0xff1638, transparent: true, opacity: 0.72, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+        const ch3RiftMatCyan = new THREE.MeshBasicMaterial({ color: 0x1ae8ff, transparent: true, opacity: 0.58, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+        const ch3RiftGeo = new THREE.PlaneGeometry(1, 1);
+        const ch3Rifts = [];
+        for (let i = 0; i < CH3_RIFT_N; i++) {
+            const m = new THREE.Mesh(ch3RiftGeo, i % 3 === 0 ? ch3RiftMatCyan : ch3RiftMatRed);
+            m.visible = false; m.frustumCulled = false; scene.add(m);
+            ch3Rifts.push({ m, t: 0, ox: 0, oy: 0, oz: 0, w: 0.4, h: 0.08 });
+        }
+        function clearCh3FX() {
+            for (let i = 0; i < ch3Rifts.length; i++) ch3Rifts[i].m.visible = false;
+            ui.ch3Scan.style.opacity = '0';
+            ui.ch3TearA.style.opacity = '0';
+            ui.ch3TearB.style.opacity = '0';
+            if (ch3HudWasCorrupt) {
+                ch3HudWasCorrupt = false;
+                ui.zone.classList.remove('hud-corrupt');
+                ui.time.classList.remove('hud-corrupt');
+                ui.dayCount.classList.remove('hud-corrupt');
+            }
+            document.body.classList.toggle('ch3-dark', chapter === 3 && started && !gameEnded && !inBackrooms());
+            document.body.classList.toggle('ch4-backrooms', chapter >= 4 && started && !gameEnded && inBackrooms());
+        }
+        function updateChapter3FX(delta) {
+            if (chapter < 3 || !started || gameEnded || scare.active || sleepCine.active) {
+                clearCh3FX();
+                return;
+            }
+            const inBr = inBackrooms();
+            document.body.classList.toggle('ch3-dark', !inBr);
+            document.body.classList.toggle('ch4-backrooms', inBr);
+
+            // Brechas de realidad diurnas: en Cap. 3 el monstruo sabe quién eres y puede cruzar incluso de día
+            if (inBr) {
+                ch3DayHunt = 0;
+            } else if (!isNight && !finalNight && !inTent) {
+                if (ch3DayHunt > 0) {
+                    ch3DayHunt -= delta;
+                    if (ch3DayHunt <= 0) {
+                        ch3DayHunt = 0;
+                        if (monster.body.visible) {
+                            spawnBurst(monster.position.x, 2.0, monster.position.z, 0xff1638, 12, 2.4, 2.0);
+                            monster.body.visible = false;
+                            monster.aura.intensity = 0;
+                            monster.position.set(35, -10, 35);
+                        }
+                        toast('LA BRECHA SE CIERRA... POR AHORA');
+                    }
+                } else {
+                    ch3BreachCD -= delta;
+                    if (ch3BreachCD <= 0) {
+                        ch3BreachCD = 34 + Math.random() * 20;
+                        if (!checkSafeZone() && !nearFire(player.position.x, player.position.z, 10)) {
+                            ch3DayHunt = 13 + Math.random() * 4;
+                            ch3BurstT = 1.4;
+                            ch3SkyFlicker = 0.28;
+                            glitchPulse = 1;
+                            playSound('glitchTear', 1.0);
+                            playSound('distantBellow', 0.9);
+                            toast('⚠ BRECHA EN EL BOSQUE · ¡EL CIERVO HUECO TE HA LOCALIZADO!');
+                        }
+                    }
+                }
+            } else if (isNight) {
+                ch3DayHunt = 0;
+            }
+
+            // Intensidad de los fallos según cercanía del monstruo y noche final
+            let nearK = 0;
+            if (monster.body.visible && !inTent) {
+                const dm = Math.hypot(monster.position.x - player.position.x, monster.position.z - player.position.z);
+                nearK = THREE.MathUtils.clamp(1 - dm / (inBr ? 22 : 28), 0, 1);
+                if (monsterState === 'chase' || monsterState === 'roar') nearK = Math.max(nearK, 0.72);
+            }
+            if ((!inBr && (finalNight || ch3DayHunt > 0)) || ch3Trap.active) nearK = Math.max(nearK, 0.85);
+
+            ch3BurstT -= delta;
+            if (ch3BurstT <= 0) {
+                const gap = nearK > 0.45 ? (1.1 + Math.random() * 2.1) : (3.2 + Math.random() * 4.5);
+                ch3BurstT = gap;
+                ch3TearT = (nearK > 0.4 ? 0.34 : 0.18) + Math.random() * 0.24;
+                ch3SkyFlicker = Math.max(ch3SkyFlicker, 0.08 + nearK * 0.14);
+                if (nearK > 0.35 || Math.random() < 0.45) playSound('glitchTear', 0.35 + nearK * 0.55);
+                if (nearK > 0.35) fovPunch = Math.max(fovPunch, 2.5 + nearK * 5.0);
+            }
+            if (ch3TearT > 0) ch3TearT -= delta;
+            if (ch3SkyFlicker > 0) ch3SkyFlicker = Math.max(0, ch3SkyFlicker - delta);
+
+            const activeGlitch = ch3TearT > 0 || nearK > 0.25;
+            ui.ch3Scan.style.opacity = inBr
+                ? (0.14 + nearK * 0.34 + (ch3TearT > 0 ? 0.22 : 0)).toFixed(2)
+                : (0.28 + nearK * 0.38 + (ch3TearT > 0 ? 0.26 : 0)).toFixed(2);
+
+            if ((inBr ? (ch3TearT > 0 && nearK > 0.35) : (ch3TearT > 0 || (nearK > 0.55 && Math.random() < 0.22)))) {
+                const ta = ui.ch3TearA, tb = ui.ch3TearB;
+                ta.style.top = (8 + Math.random() * 78).toFixed(1) + '%';
+                ta.style.height = (2 + Math.random() * 14).toFixed(0) + 'px';
+                ta.style.transform = `translateX(${((Math.random() - 0.5) * 24).toFixed(1)}px)`;
+                ta.style.opacity = (0.45 + Math.random() * 0.45).toFixed(2);
+                tb.style.top = (8 + Math.random() * 78).toFixed(1) + '%';
+                tb.style.height = (1 + Math.random() * 9).toFixed(0) + 'px';
+                tb.style.transform = `translateX(${((Math.random() - 0.5) * 32).toFixed(1)}px)`;
+                tb.style.opacity = (0.35 + Math.random() * 0.45).toFixed(2);
+            } else {
+                ui.ch3TearA.style.opacity = '0';
+                ui.ch3TearB.style.opacity = '0';
+            }
+
+            // Corrupción momentánea del HUD
+            ch3CorruptT -= delta;
+            if (!inBr && ch3TearT > 0 && ch3CorruptT <= 0 && Math.random() < 0.55) {
+                ch3CorruptT = 0.16;
+                ch3HudWasCorrupt = true;
+                const msg = CH3_CORRUPT_WORDS[Math.floor(Math.random() * CH3_CORRUPT_WORDS.length)];
+                ui.zone.classList.add('hud-corrupt');
+                ui.time.classList.add('hud-corrupt');
+                ui.zone.style.setProperty('--gx', ((Math.random() - 0.5) * 6).toFixed(1) + 'px');
+                ui.zone.style.setProperty('--gy', ((Math.random() - 0.5) * 3).toFixed(1) + 'px');
+                ui.zone.style.setProperty('--gsk', ((Math.random() - 0.5) * 14).toFixed(1) + 'deg');
+                setText(ui.zone, msg);
+            } else if ((ch3CorruptT <= 0 || inBr) && ch3HudWasCorrupt) {
+                ch3HudWasCorrupt = false;
+                ui.zone.classList.remove('hud-corrupt');
+                ui.time.classList.remove('hud-corrupt');
+            }
+
+            // Fragmentos 3D glitcheados flotando por todo el bosque y alrededor del monstruo
+            if (inBr) {
+                for (let i = 0; i < CH3_RIFT_N; i++) ch3Rifts[i].m.visible = false;
+                return;
+            }
+            ch3GlitchT -= delta;
+            const refresh3D = ch3GlitchT <= 0;
+            if (refresh3D) ch3GlitchT = ch3TearT > 0 ? 0.055 : 0.14;
+            const px = player.position.x, py = player.position.y, pz = player.position.z;
+            const countOn = activeGlitch ? (ch3TearT > 0 ? CH3_RIFT_N : Math.max(4, Math.round(CH3_RIFT_N * (0.35 + nearK * 0.65)))) : 4;
+            for (let i = 0; i < CH3_RIFT_N; i++) {
+                const rf = ch3Rifts[i];
+                if (i >= countOn || inTent) { rf.m.visible = false; continue; }
+                if (refresh3D || !rf.m.visible) {
+                    const nearMonster = monster.body.visible && i < Math.floor(countOn * 0.45);
+                    if (nearMonster) {
+                        rf.m.position.set(
+                            monster.position.x + (Math.random() - 0.5) * 2.8,
+                            0.6 + Math.random() * 3.4,
+                            monster.position.z + (Math.random() - 0.5) * 2.8
+                        );
+                    } else {
+                        const a = yaw + (Math.random() - 0.5) * 2.8, dist = 3.5 + Math.random() * 16;
+                        rf.m.position.set(
+                            px - Math.sin(a) * dist + (Math.random() - 0.5) * 2.5,
+                            Math.max(0.7, py - 1.1 + Math.random() * 4.2),
+                            pz - Math.cos(a) * dist + (Math.random() - 0.5) * 2.5
+                        );
+                    }
+                    rf.m.scale.set(0.25 + Math.random() * 1.9, 0.03 + Math.random() * 0.22, 1);
+                    rf.m.rotation.set((Math.random() - 0.5) * 0.4, yaw + (Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.25);
+                    rf.m.visible = Math.random() < (ch3TearT > 0 ? 0.92 : 0.62);
+                }
+            }
+        }
 
         function updateDayNightCycle(delta) {
             const wasNight = isNight;
@@ -6217,13 +6765,110 @@
                 daysPlayed++;
                 setText(ui.dayCount, `DÍA ${daysPlayed}`);
                 rollWeather(true);   // cada amanecer trae un clima nuevo
-                if (!finalNight) {   // se muestra al volver el control (no en medio de la cinemática de dormir)
+                if (!finalNight && !inBackrooms()) {   // se muestra al volver el control (no en medio de la cinemática de dormir)
                     if (daysPlayed === GUIDE_DAY) pendingGuide = true; else if (OMENS[daysPlayed]) pendingOmen = daysPlayed;
                     if (nextPage < TOTAL_PAGES && PAGE_REVEAL_DAYS[nextPage] === daysPlayed) pendingReveal = daysPlayed;   // hoy se revela la ubicación de la siguiente página
                 }
             }
             isNight = dayTime >= DAY_DURATION;
-            if (wasNight && !isNight && finalNight && started && !gameEnded) triggerVictory();
+            if (wasNight && !isNight && finalNight && started && !gameEnded && !ch3Trap.active && !inBackrooms()) triggerVictory();
+
+            const br = inBackrooms();
+            if (br) {
+                if (fireplaceLight) fireplaceLight.intensity = 0;
+                lightningLight.intensity = 0;
+                boltGroup.visible = false;
+                cloudGroup.visible = false;
+                rainLines.visible = false;
+                moonGroup.visible = false;
+                stars.visible = false;
+                sky.visible = false;
+                if (audioCtx) {
+                    windNightState = null;
+                    if (windGain) windGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.4);
+                    if (rainGain) rainGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.4);
+                    if (fogGain) fogGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.4);
+                    if (backroomGain) backroomGain.gain.setTargetAtTime(started && !gameEnded ? 0.075 : 0, audioCtx.currentTime, 0.45);
+                }
+                const gx = Math.floor((player.position.x - BKX) / BR_CELL);
+                const gz = Math.floor((player.position.z - BKZ) / BR_CELL);
+                const crimson = gx <= -4 && gz >= 3;
+                scene.background.setHex(crimson ? 0x220709 : 0x2b2511);
+                scene.fog.color.copy(scene.background);
+                scene.fog.density = 0.068 * FOG_SCALE;
+                sunLight.shadow.autoUpdate = false;
+                moonLight.shadow.autoUpdate = false;
+                sunLight.intensity = 0;
+                moonLight.intensity = 0;
+                ambientLight.intensity = crimson ? 0.28 : 0.42;
+                hemisphereLight.intensity = crimson ? 0.16 : 0.26;
+
+                // Luces fluorescentes del techo más cercanas al jugador
+                const cand = [];
+                for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+                    const cx = gx + dx, cz = gz + dz;
+                    const key = cx + ',' + cz;
+                    if (!BR_SITE_CELLS.has(key) && hash2(cx, cz, 405) <= 0.14) continue;
+                    const lx = BKX + cx * BR_CELL + 3, lz = BKZ + cz * BR_CELL + 3;
+                    const d2 = (lx - player.position.x) * (lx - player.position.x) + (lz - player.position.z) * (lz - player.position.z);
+                    cand.push({ lx, lz, d2, h: hash2(cx, cz, 409) });
+                }
+                cand.sort((a, b) => a.d2 - b.d2);
+                for (let i = 0; i < backroomLights.length; i++) {
+                    const bl = backroomLights[i];
+                    if (i < cand.length) {
+                        const c = cand[i];
+                        const flick = Math.sin(time * (19 + i * 7) + c.h * 20) > 0.94 ? 0.42 : (0.94 + Math.sin(time * 40 + c.h * 9) * 0.06);
+                        bl.color.setHex(crimson ? 0xff8e8e : 0xfff1a8);
+                        bl.position.set(c.lx, 5.2, c.lz);
+                        bl.intensity = (crimson ? 0.95 : 1.35) * flick;
+                    } else {
+                        bl.intensity = 0;
+                    }
+                }
+
+                const brCollected = Math.max(0, nextPage - (CH1_PAGES + CH2_PAGES + CH3_PAGES));
+                setText(ui.time, `NIVEL 0 · ${crimson ? 'SECTOR CARMESÍ' : 'LOS BACKROOMS'} (${brCollected}/${CH4_PAGES})`);
+                setColor(ui.time, crimson ? '#ff5e6c' : '#f3e072');
+
+                if (brGraceT > 0) brGraceT = Math.max(0, brGraceT - delta);
+                if (started && !gameEnded && !inTent && brGraceT <= 0 && !monster.body.visible && !ch3Trap.active) {
+                    let sx = BKX_SPAWN, sz = BKZ_SPAWN, found = false;
+                    for (let tries = 0; tries < 24; tries++) {
+                        const ang = (tries / 24) * Math.PI * 2 + Math.random() * 0.4;
+                        const distCells = 3 + (tries % 2);
+                        const cgx = gx + Math.round(Math.cos(ang) * distCells);
+                        const cgz = gz + Math.round(Math.sin(ang) * distCells);
+                        const tx = BKX + cgx * BR_CELL + 3, tz = BKZ + cgz * BR_CELL + 3;
+                        if (Math.hypot(tx - player.position.x, tz - player.position.z) < 12) continue;
+                        if (!chunks.has(chunkKey(Math.round(tx) >> 4, Math.round(tz) >> 4))) continue;
+                        if (!monsterBlockedAt(tx, tz)) { sx = tx; sz = tz; found = true; break; }
+                    }
+                    if (found) {
+                        monster.position.set(sx, 0.5, sz);
+                        monster.body.visible = true;
+                        monster.aura.intensity = 2.4;
+                        monsterState = 'stalk';
+                        monsterStateTimer = 4.5;
+                        monsterAtDoor = false;
+                        monsterStunned = false;
+                        resetMonsterAI();
+                        playSound('distantBellow', 0.65);
+                        toast('ALGO CAMINA POR LOS PASILLOS...');
+                    }
+                }
+                return;
+            }
+            sky.visible = true;
+            for (let i = 0; i < backroomLights.length; i++) backroomLights[i].intensity = 0;
+            if (backroomGain && audioCtx) backroomGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.35);
+
+            // Tinte de la luna en Capítulo 3
+            if (ch3LastMoonCh !== chapter) {
+                ch3LastMoonCh = chapter;
+                moonSphere.material.color.setHex(chapter >= 3 ? 0xff4c5e : 0xe2eaff);
+                moonGlow.material.color.setHex(chapter >= 3 ? 0xa60d20 : 0x829de8);
+            }
 
             // Fuego de la chimenea
             if (fireplaceLight) {
@@ -6237,30 +6882,63 @@
                 animateSmoke();
             }
 
+            const ch3 = chapter >= 3;
+            const breachActive = ch3 && ch3DayHunt > 0 && !isNight;
+
             if (!isNight) {
                 const dayProgress = dayTime / DAY_DURATION;
                 const hours = Math.floor(6 + dayProgress * 12);
-                setText(ui.time, `DÍA (${String(hours).padStart(2, '0')}:00) ${WX[weather].icon}`);
-                setColor(ui.time, '#f1c40f');
+                if (breachActive) {
+                    setText(ui.time, `BRECHA (${String(hours).padStart(2, '0')}:00) 🩸 ¡CORRE!`);
+                    setColor(ui.time, '#ff2d55');
+                } else {
+                    setText(ui.time, `DÍA (${String(hours).padStart(2, '0')}:00) ${WX[weather].icon}${ch3 ? ' 🩸' : ''}`);
+                    setColor(ui.time, ch3 ? '#c86a70' : '#f1c40f');
+                }
 
-                // Amanecer rápido y atardecer anaranjado
+                // Amanecer rápido y atardecer anaranjado (en Cap. 3 el bosque permanece oscuro y enfermo)
                 const sunFactor = Math.min(1, Math.sin(dayProgress * Math.PI) * 1.8);
-                _sky.lerpColors(nightSkyColor, daySkyColor, sunFactor);
-                if (dayProgress > 0.6) _sky.lerp(duskColor, (dayProgress - 0.6) / 0.4 * 0.45 * (1 - Math.abs(sunFactor - 0.4)));
+                const dSky = ch3 ? ch3DaySkyColor : daySkyColor;
+                const nSky = ch3 ? ch3NightSkyColor : nightSkyColor;
+                const dsk = ch3 ? ch3DuskColor : duskColor;
+                _sky.lerpColors(nSky, dSky, sunFactor);
+                if (dayProgress > 0.6) _sky.lerp(dsk, (dayProgress - 0.6) / 0.4 * 0.45 * (1 - Math.abs(sunFactor - 0.4)));
+                if (breachActive) _sky.lerp(ch3BreachColor, 0.78);
                 scene.background.copy(_sky);
                 scene.fog.color.copy(_sky);
-                scene.fog.density = THREE.MathUtils.lerp(0.07, 0.026 * FOG_SCALE, sunFactor);
+                scene.fog.density = ch3
+                    ? (breachActive ? 0.078 * FOG_SCALE : THREE.MathUtils.lerp(0.088, 0.048 * FOG_SCALE, sunFactor))
+                    : THREE.MathUtils.lerp(0.07, 0.026 * FOG_SCALE, sunFactor);
 
                 sunLight.shadow.autoUpdate = true;
                 moonLight.shadow.autoUpdate = false;
-                sunLight.intensity = sunFactor * 1.2;
+                sunLight.intensity = sunFactor * (ch3 ? (breachActive ? 0.16 : 0.44) : 1.2);
                 moonLight.intensity = 0;
-                ambientLight.intensity = THREE.MathUtils.lerp(0.2, 0.72, sunFactor);
-                hemisphereLight.intensity = THREE.MathUtils.lerp(0.12, 0.42, sunFactor);
-                moonGroup.visible = false;
-                stars.visible = false;
+                ambientLight.intensity = ch3 ? THREE.MathUtils.lerp(0.11, breachActive ? 0.16 : 0.28, sunFactor) : THREE.MathUtils.lerp(0.2, 0.72, sunFactor);
+                hemisphereLight.intensity = ch3 ? THREE.MathUtils.lerp(0.08, breachActive ? 0.11 : 0.2, sunFactor) : THREE.MathUtils.lerp(0.12, 0.42, sunFactor);
+                moonGroup.visible = breachActive;
+                stars.visible = breachActive;
 
-                if (monster.body.visible) {
+                if (breachActive) {
+                    if (!monster.body.visible && !inTent) {
+                        monster.body.visible = true;
+                        monster.aura.intensity = 2.6;
+                        let a = Math.random() * Math.PI * 2, sx = 0, sz = 0;
+                        for (let tries = 0; tries < 20; tries++) {
+                            sx = player.position.x + Math.cos(a) * 20;
+                            sz = player.position.z + Math.sin(a) * 20;
+                            if (!monsterBlockedAt(sx, sz) && Math.hypot(sx - player.position.x, sz - player.position.z) > 12) break;
+                            a += 0.45;
+                        }
+                        monster.position.set(sx, 0.5, sz);
+                        monsterState = 'chase';
+                        monsterStateTimer = 99;
+                        monsterAtDoor = false;
+                        monsterStunned = false;
+                        resetMonsterAI();
+                        playSound('growl', 1.2);
+                    }
+                } else if (monster.body.visible) {
                     monster.body.visible = false;
                     monster.aura.intensity = 0;
                     monster.position.set(35, -10, 35);
@@ -6268,29 +6946,30 @@
             } else {
                 const nightProgress = (dayTime - DAY_DURATION) / NIGHT_DURATION;
                 const hours = Math.floor((18 + nightProgress * 12) % 24);
-                setText(ui.time, `NOCHE (${String(hours).padStart(2, '0')}:00) ${WX[weather].icon} - ¡PELIGRO!`);
+                setText(ui.time, `NOCHE (${String(hours).padStart(2, '0')}:00) ${WX[weather].icon} - ${ch3 ? '¡CAZA TOTAL!' : '¡PELIGRO!'}`);
                 setColor(ui.time, '#e84118');
 
-                scene.background.copy(nightSkyColor);
-                scene.fog.color.copy(nightSkyColor);
-                scene.fog.density = 0.05 * FOG_SCALE;
+                const nSky = ch3 ? (finalNight ? ch3BreachColor : ch3NightSkyColor) : nightSkyColor;
+                scene.background.copy(nSky);
+                scene.fog.color.copy(nSky);
+                scene.fog.density = (ch3 ? 0.074 : 0.05) * FOG_SCALE;
 
                 sunLight.shadow.autoUpdate = false;
                 moonLight.shadow.autoUpdate = true;
                 sunLight.intensity = 0;
-                moonLight.intensity = 0.92;
-                ambientLight.intensity = 0.3;
-                hemisphereLight.intensity = 0.32;
+                moonLight.intensity = ch3 ? 0.54 : 0.92;
+                ambientLight.intensity = ch3 ? 0.14 : 0.3;
+                hemisphereLight.intensity = ch3 ? 0.16 : 0.32;
                 moonGroup.visible = true;
                 stars.visible = true;
 
                 if (!monster.body.visible && !monsterFreeNight() && !inTent) {
                     monster.body.visible = true;
-                    monster.aura.intensity = 2;
+                    monster.aura.intensity = ch3 ? 2.6 : 2;
                     // Aparece entre los árboles, lejos del jugador
                     let a = Math.random() * Math.PI * 2;
                     let sx = 0, sz = 0;
-                    const R = finalChase ? 13 : 26;
+                    const R = finalChase ? 13 : (ch3 ? 21 : 26);
                     if (finalChase) a = Math.atan2(player.position.z - BEACON_Z, player.position.x - BEACON_X);   // a tu espalda, del lado contrario a la cabaña
                     for (let tries = 0; tries < 20; tries++) {
                         sx = player.position.x + Math.cos(a) * R;
@@ -6299,26 +6978,32 @@
                         a += 0.45;
                     }
                     monster.position.set(sx, 0.5, sz);
-                    monsterState = finalNight ? 'chase' : 'stalk';
-                    monsterStateTimer = 6;
+                    monsterState = (finalNight || ch3) ? 'chase' : 'stalk';
+                    monsterStateTimer = ch3 ? 3.5 : 6;
                     monsterAtDoor = false;
                     monsterStunned = false;
                     resetMonsterAI();
                     if (finalChase) {   // ruge un instante antes de lanzarse: es tu ventaja para salir corriendo
-                        monsterState = 'roar'; roarT = 1.5;
+                        monsterState = 'roar'; roarT = ch3 ? 1.1 : 1.5;
                         monster.rotation.y = Math.atan2(player.position.x - sx, player.position.z - sz);
                         playSound('growl', 1.3); glitchPulse = 1;
                     }
                 }
 
                 // Relámpagos (probabilidad por segundo, no por frame): con lluvia caen rayos fuertes; sin ella, destellos lejanos
-                const stormy = wxRain > 0.5;
-                if (lightningTimer <= 0 && Math.random() < delta * (stormy ? 0.14 : 0.3)) {
+                const stormy = wxRain > 0.5 || ch3;
+                if (lightningTimer <= 0 && Math.random() < delta * (stormy ? (ch3 ? 0.24 : 0.14) : 0.3)) {
                     if (stormy) strike(1.5 + Math.random() * 0.6, true); else strike(1, false);
                 }
             }
 
             applyWeather(delta);
+
+            if (ch3 && ch3SkyFlicker > 0 && Math.random() < 0.45) {
+                scene.background.lerp(ch3BreachColor, 0.72);
+                scene.fog.color.copy(scene.background);
+                scene.fog.density *= 1.25;
+            }
 
             if (lightningTimer > 0) {
                 lightningTimer -= delta;
@@ -6366,7 +7051,10 @@
         // ---- Historia: notas del diario, objetivo en pantalla y final ----
         let noteTimer = 0;
         function showNote(id) {
-            setText(ui.noteTitle, `${id < CH1_PAGES ? 'DIARIO DE ELÍAS' : 'CRÓNICAS DEL ERRANTE'} · ${pageLabel(id)} · ${STORY[id].title.toUpperCase()}`);
+            const hdr = id < CH1_PAGES ? 'DIARIO DE ELÍAS'
+                      : (id < CH1_PAGES + CH2_PAGES ? 'CRÓNICAS DEL ERRANTE'
+                      : (id < CH1_PAGES + CH2_PAGES + CH3_PAGES ? 'LA FRACTURA DEL CIERVO' : 'LOS BACKROOMS · NIVEL 0'));
+            setText(ui.noteTitle, `${hdr} · ${pageLabel(id)} · ${STORY[id].title.toUpperCase()}`);
             setText(ui.noteText, STORY[id].text);
             setDisplay(ui.note, 'block');
             noteTimer = 20;
@@ -6476,7 +7164,7 @@
 
         const holdingVerity = () => selected === 'verity' && inventory.verity > 0;   // con ella en la mano no pierdes hambre
         const hackEl = $('hack-chat'), hackLog = $('hack-log'), hackInput = $('hack-input');
-        let hackTimers = [], ch2Skipping = false;
+        let hackTimers = [], ch2Skipping = false, ch3Skipping = false, ch4Skipping = false;
         const hackPrint = (text, cls) => { const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = text; hackLog.appendChild(d); hackLog.scrollTop = hackLog.scrollHeight; };
         const hackLater = (ms, fn) => { hackTimers.push(setTimeout(fn, ms)); };
         function openHack() {
@@ -6486,7 +7174,7 @@
             if (document.pointerLockElement) document.exitPointerLock();
             hackLog.innerHTML = ''; hackInput.value = ''; hackEl.style.display = 'block';
             initAudio(); playSound('whisper', 0.4);
-            ['> conectando con el servidor del bosque...', '> sesión anónima detectada · acceso desde el menú de crafteo', '> canal cifrado abierto ▓', '> escribe un comando'].forEach((t, i) => hackLater(350 + i * 650, () => hackPrint(t)));
+            ['> conectando con el servidor del bosque...', '> sesión anónima detectada · acceso desde el menú de crafteo', '> canal cifrado abierto ▓', '> escribe un comando (/help para ver lista)'].forEach((t, i) => hackLater(350 + i * 650, () => hackPrint(t)));
             setTimeout(() => hackInput.focus(), 120);
         }
         function closeHack() {
@@ -6495,6 +7183,8 @@
             chatOpen = false; hackEl.style.display = 'none'; hackInput.blur();
             if (verityUnlocked && verity.state === 'off') summonVerity(true);   // si cierras antes de que termine la animación, Verity entra igualmente
             if (ch2Skipping) { ch2Skipping = false; beginChapter2(true); }   // lo mismo con el salto al capítulo 2
+            if (ch3Skipping) { ch3Skipping = false; beginChapter3(true); }   // y al capítulo 3
+            if (ch4Skipping) { ch4Skipping = false; beginChapter4(true); }   // y al capítulo 4 (Backrooms)
             if (gameEnded) return;
             if (IS_MOBILE) paused = false;
             else { paused = true; setDisplay(ui.pause, 'flex'); tryLock(); }   // si el navegador no deja recapturar el ratón, un clic vuelve a la partida
@@ -6514,6 +7204,7 @@
                 hackLater(3600, () => closeHack());
             } else if (c === '/ch@pter-2s') {
                 if (chapter === 2) { hackPrint('> el capítulo 2 ya está en curso', 'ok'); hackLater(900, closeHack); return; }
+                if (chapter >= 3) { hackPrint('> ya superaste el capítulo 2', 'ok'); hackLater(900, closeHack); return; }
                 if (ch2Skipping) return;
                 ch2Skipping = true;
                 hackLater(300, () => hackPrint('> verificando clave...'));
@@ -6521,8 +7212,27 @@
                 hackLater(1800, () => hackPrint('> reescribiendo el diario de Elías ▓▓▓▓▓▓'));
                 hackLater(2700, () => { beginChapter2(true); ch2Skipping = false; hackPrint('> CAPÍTULO 2 · EL HOMBRE BAJO LA MÁSCARA', 'ok'); });
                 hackLater(3800, () => closeHack());
+            } else if (c === '/ch@pter-3s' || c === '/chapter-3s' || c === '/chapter3' || c === '/cap3' || c === '/ch3') {
+                if (chapter === 3) { hackPrint('> el capítulo 3 ya está en curso', 'ok'); hackLater(900, closeHack); return; }
+                if (chapter >= 4) { hackPrint('> ya estás en los Backrooms (Capítulo 4)', 'ok'); hackLater(900, closeHack); return; }
+                if (ch3Skipping) return;
+                ch3Skipping = true;
+                hackLater(300, () => hackPrint('> verificando clave...'));
+                hackLater(1100, () => hackPrint('> acceso concedido ✔ · ALERTA DE IDENTIDAD'));
+                hackLater(1800, () => hackPrint('> fracturando la corteza del bosque ▓▓▓▓▓▓'));
+                hackLater(2700, () => { beginChapter3(true); ch3Skipping = false; hackPrint('> CAPÍTULO 3 · EL DESPERTAR DEL CIERVO', 'ok'); });
+                hackLater(3800, () => closeHack());
+            } else if (c === '/ch@pter-4s' || c === '/chapter-4s' || c === '/chapter4' || c === '/cap4' || c === '/ch4' || c === '/backrooms') {
+                if (chapter >= 4) { hackPrint('> los Backrooms (Capítulo 4) ya están en curso', 'ok'); hackLater(900, closeHack); return; }
+                if (ch4Skipping) return;
+                ch4Skipping = true;
+                hackLater(300, () => hackPrint('> verificando clave...'));
+                hackLater(1100, () => hackPrint('> noclip forzado ✔ · SALIENDO DE LA REALIDAD'));
+                hackLater(1800, () => hackPrint('> cargando Nivel 0 · Los Backrooms ▓▓▓▓▓▓'));
+                hackLater(2700, () => { beginChapter4(true); ch4Skipping = false; hackPrint('> CAPÍTULO 4 · LOS BACKROOMS', 'ok'); });
+                hackLater(3800, () => closeHack());
             } else if (c === '/salir' || c === '/exit') closeHack();
-            else if (c === '/help' || c === '/ayuda') hackPrint('> comandos públicos: /salir · el resto no figura en la lista');
+            else if (c === '/help' || c === '/ayuda') hackPrint('> comandos: /verityomg · /ch@pter-2s · /ch@pter-3s · /ch@pter-4s · /salir');
             else hackPrint('> comando desconocido');
         }
         hackInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runHack(hackInput.value); hackInput.value = ''; } });
@@ -6561,7 +7271,10 @@
         function showReveal(d) {   // el diario revela la ubicación de la siguiente página
             const i = nextPage, s = STORY_SITES[i];
             setText(ui.noteTitle, `DÍA ${d} · NUEVA UBICACIÓN · ${pageLabel(i)}`);
-            setText(ui.noteText, `${i < CH1_PAGES ? 'Entre las hojas de Elías aparece por fin otro lugar.' : 'Las crónicas del Errante señalan otro lugar.'} ${SITE_CLUES[s.type]}. ` + (storyGuideOn() ? 'El objetivo ya marca su rumbo: la página brilla desde hoy.' : 'Aún no hay rumbo: búscala por las pistas. La página existe desde hoy.'));
+            const lead = i < CH1_PAGES ? 'Entre las hojas de Elías aparece por fin otro lugar.'
+                       : (i < CH1_PAGES + CH2_PAGES ? 'Las crónicas del Errante señalan otro lugar.'
+                       : (i < CH1_PAGES + CH2_PAGES + CH3_PAGES ? 'La grieta del Ciervo Hueco desgarra otro punto del bosque.' : 'En los pasillos amarillos aparece otra señal.'));
+            setText(ui.noteText, `${lead} ${SITE_CLUES[s.type]}. ` + (storyGuideOn() ? 'El objetivo ya marca su rumbo: la página brilla desde hoy.' : 'Aún no hay rumbo: búscala por las pistas. La página existe desde hoy.'));
             setDisplay(ui.note, 'block'); noteTimer = 14;
             playSound('pagePickup');
         }
@@ -6578,7 +7291,10 @@
             hintedPages.add(idx);
             const s = STORY_SITES[idx];
             setText(ui.noteTitle, `PISTA DEL DIARIO · DÍA ${daysPlayed}`);
-            setText(ui.noteText, `${idx < CH1_PAGES ? 'Entre las hojas, Elías dejó unas coordenadas exactas.' : 'Las crónicas apuntan unas coordenadas exactas.'} ${pageLabel(idx)} · ${s.name}: X ${s.x} · Z ${s.z}. Tus coordenadas actuales aparecen junto al objetivo.`);
+            const lead = idx < CH1_PAGES ? 'Entre las hojas, Elías dejó unas coordenadas exactas.'
+                       : (idx < CH1_PAGES + CH2_PAGES ? 'Las crónicas apuntan unas coordenadas exactas.'
+                       : (idx < CH1_PAGES + CH2_PAGES + CH3_PAGES ? 'Entre los fallos de la realidad aparecen estas coordenadas.' : 'Las notas del Nivel 0 marcan estas coordenadas.'));
+            setText(ui.noteText, `${lead} ${pageLabel(idx)} · ${s.name}: X ${s.x} · Z ${s.z}. Tus coordenadas actuales aparecen junto al objetivo.`);
             setDisplay(ui.note, 'block'); noteTimer = 18;
             playSound('pagePickup');
         }
@@ -6586,27 +7302,31 @@
         let objKey = '', objUntil = 0;
         function updateObjective() {
             let txt = '';
-            if (pendingGuide && !finalNight) { pendingGuide = false; revealGuide(); }
-            if (pendingOmen && !finalNight) { const od = pendingOmen; pendingOmen = 0; showOmen(od); }
-            if (pendingReveal && !finalNight && noteTimer <= 0 && !pendingGuide) { const rd = pendingReveal; pendingReveal = 0; if (nextPage < TOTAL_PAGES && pageAvailable()) showReveal(rd); }
+            if (pendingGuide && !finalNight && !inBackrooms()) { pendingGuide = false; revealGuide(); }
+            if (pendingOmen && !finalNight && !inBackrooms()) { const od = pendingOmen; pendingOmen = 0; showOmen(od); }
+            if (pendingReveal && !finalNight && !inBackrooms() && noteTimer <= 0 && !pendingGuide) { const rd = pendingReveal; pendingReveal = 0; if (nextPage < TOTAL_PAGES && pageAvailable()) showReveal(rd); }
             if (nextPage < TOTAL_PAGES && pageObj.group.visible !== pageAvailable()) placePageObj();   // la página aparece sola al llegar su día
             updateStoryProps();
             pageObj.beam.visible = storyGuideOn();   // sin el haz rojo (que se ve de lejos) hasta que pasen los cinco días
             if (finalChase && checkSafeZone()) { finalChase = false; toast('¡A SALVO! RESISTE HASTA EL AMANECER'); playSound('discover'); }
-            if (finalNight) {
+            if (ch3Trap.active) {
+                txt = '🩸 ¡EL NÚCLEO SE CIERRA! · ¡NO HAY ESCAPE!';
+            } else if (finalNight) {
                 txt = finalChase ? `🏃 ¡CORRE A LA CABAÑA! · ${arrowTo(BEACON_X, BEACON_Z)} · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s`
-                                 : (chapter === 2 ? `🌑 RESISTE HASTA EL AMANECER Y DI SU NOMBRE: ALDRIC VOSS · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s` : `🌑 SOBREVIVE HASTA EL AMANECER · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s`);
+                                 : (chapter >= 3 ? `🩸 ¡EL CIERVO HUECO VIENE A ELIMINARTE! RESISTE · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s`
+                                                 : (chapter === 2 ? `🌑 RESISTE HASTA EL AMANECER Y DI SU NOMBRE: ALDRIC VOSS · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s` : `🌑 SOBREVIVE HASTA EL AMANECER · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s`));
             } else if (inTent) {
                 txt = isNight ? (dayTime < SLEEP_FROM_T ? `⛺ ESTÁS A SALVO · PODRÁS DORMIR DESDE LAS ${SLEEP_FROM_HOUR}:00` : '⛺ ESTÁS A SALVO · DUERME EN EL SACO (E) HASTA EL AMANECER') : '⛺ CASA DE ACAMPAR · COLOCA COSAS A TU GUSTO · SAL POR LA PUERTA DE LONA (E)';
             } else if (nextPage < TOTAL_PAGES) {
                 const s = STORY_SITES[nextPage];
-                if (!pageAvailable()) txt = `📜 ${pageLabel(nextPage)} · el diario aún no revela su ubicación · se revela el día ${PAGE_REVEAL_DAYS[nextPage]} · duerme o espera al amanecer`;
-                else if (storyGuideOn()) txt = `📜 ${pageLabel(nextPage)} · ${s.name} · ${arrowTo(s.x, s.z)} · 📍 X ${s.x} Z ${s.z} (tú: X ${Math.round(player.position.x)} Z ${Math.round(player.position.z)})`;
-                else txt = `📜 ${pageLabel(nextPage)} · ${SITE_CLUES[s.type]} · 🧭 el rumbo se revela el día ${GUIDE_DAY}`;
+                const icon = inBackrooms() ? '🟨' : '📜';
+                if (!pageAvailable()) txt = `${icon} ${pageLabel(nextPage)} · el diario aún no revela su ubicación · se revela el día ${PAGE_REVEAL_DAYS[nextPage]} · duerme o espera al amanecer`;
+                else if (storyGuideOn()) txt = `${icon} ${pageLabel(nextPage)} · ${s.name} · ${arrowTo(s.x, s.z)} · 📍 X ${s.x} Z ${s.z} (tú: X ${Math.round(player.position.x)} Z ${Math.round(player.position.z)})`;
+                else txt = `${icon} ${pageLabel(nextPage)} · ${SITE_CLUES[s.type]} · 🧭 el rumbo se revela el día ${GUIDE_DAY}`;
             }
             setText(ui.objective, txt);
             // El letrero del objetivo solo se ve 10 s cada vez que cambia (más pantalla libre); tecla O para verlo otra vez
-            const okey = finalNight ? (finalChase ? 'chase' : 'final') : `${nextPage}|${pageAvailable()}|${storyGuideOn()}`, now = performance.now();
+            const okey = ch3Trap.active ? 'trap' : (finalNight ? (finalChase ? 'chase' : 'final') : `${nextPage}|${pageAvailable()}|${storyGuideOn()}|${inBackrooms() ? 1 : 0}`), now = performance.now();
             if (!started) objKey = '';
             else if (okey !== objKey) { objKey = okey; objUntil = now + OBJ_SHOW_MS; }
             setDisplay(ui.objective, (txt && now < objUntil) ? 'flex' : 'none');
@@ -6618,11 +7338,15 @@
             inventory.pages = nextPage;
             updateInventoryHUD();
             playSound('pagePickup');
-            glitchPulse = Math.max(glitchPulse, 0.35); setTimeout(() => playSound('whisper', 0.5), 700);   // el bosque reacciona
+            glitchPulse = Math.max(glitchPulse, chapter >= 3 ? 0.75 : 0.35); setTimeout(() => playSound('whisper', chapter >= 3 ? 0.8 : 0.5), 700);   // el bosque reacciona
             showNote(id);
             placePageObj();
             if (nextPage < TOTAL_PAGES && !pageAvailable()) setTimeout(() => toast(`LA SIGUIENTE UBICACIÓN SE REVELA EL DÍA ${PAGE_REVEAL_DAYS[nextPage]}`), 3500);
-            if (nextPage >= TOTAL_PAGES) startFinalNight();
+            if (nextPage >= TOTAL_PAGES) {
+                if (chapter === 4) { triggerVictory(); return; }
+                if (chapter === 3) { startCh3FinalTrap(); return; }
+                startFinalNight();
+            }
         }
 
         // Con la última página, la noche cae de golpe: hay que resistir hasta el amanecer.
@@ -6640,17 +7364,66 @@
                 }
             }
             glitchPulse = 1;
-            toast(chapter === 2 ? 'ALDRIC VOSS VIENE A POR TI · ¡CORRE A LA CABAÑA!' : '¡EL VIENTO APAGA LAS LLAMAS! · ¡CORRE A LA CABAÑA!');
+            if (chapter >= 3) { ch3BurstT = 0; ch3TearT = 0.8; playSound('glitchTear', 1); }
+            toast(chapter >= 3 ? '¡EL CIERVO HUECO SABE QUIÉN ERES! · ¡CORRE A LA CABAÑA!' : (chapter === 2 ? 'ALDRIC VOSS VIENE A POR TI · ¡CORRE A LA CABAÑA!' : '¡EL VIENTO APAGA LAS LLAMAS! · ¡CORRE A LA CABAÑA!'));
+        }
+        // Final del Capítulo 3: al recoger la última página del Núcleo, el Ciervo Hueco cierra la trampa, te mata y caes a los Backrooms
+        function startCh3FinalTrap() {
+            hideNote();
+            finalNight = true;
+            finalChase = false;
+            dayTime = DAY_DURATION;
+            isNight = true;
+            strike(1.8, true);
+            const site = STORY_SITES[nextPage - 1];
+            for (const f of fires.values()) {
+                if (f.lit && !f.maxFuel && Math.hypot(f.x - site.x, f.z - site.z) < 18) {
+                    f.lit = false; f.out = true;
+                    if (f.flame) f.flame.visible = false; if (f.flame2) f.flame2.visible = false; if (f.glow) f.glow.visible = false;
+                }
+            }
+            glitchPulse = 1; ch3BurstT = 0; ch3TearT = 1.2; ch3SkyFlicker = 1.0;
+            playSound('glitchTear', 1);
+            playSound('monsterScream', 1);
+            ch3Trap = { active: true, t: 0 };
+            let sx = player.position.x - Math.sin(yaw) * 6.0, sz = player.position.z - Math.cos(yaw) * 6.0;
+            for (let k = 0; k < 12; k++) {
+                const ang = yaw + (k * 0.52);
+                const tx = player.position.x - Math.sin(ang) * 6.2, tz = player.position.z - Math.cos(ang) * 6.2;
+                if (!monsterBlockedAt(tx, tz, true)) { sx = tx; sz = tz; break; }
+            }
+            monster.position.set(sx, 0.5, sz);
+            monster.body.visible = true;
+            monster.aura.intensity = 3.2;
+            monsterState = 'chase';
+            monsterStateTimer = 99;
+            monsterStunned = false;
+            monsterAtDoor = false;
+            resetSiege();
+            monster.rotation.y = Math.atan2(player.position.x - sx, player.position.z - sz);
+            fovPunch = Math.max(fovPunch, 9);
+            toast('🩸 ¡EL CIERVO HUECO CERRÓ EL NÚCLEO! · NO HAY ESCAPE');
         }
         const victoryTitle = $('victory-title'), btnContinue = $('btn-continue');
         function triggerVictory() {
             if (chapter === 1) {
                 setText(victoryTitle, '¡HAS ROTO LA MALDICIÓN!');
                 setText(ui.victoryText, EPILOGUE + ' Pero el bosque aún no ha contado toda su historia: ¿quién era de verdad el Errante y por qué es cruel? Puedes seguir jugando y descubrirlo en el Capítulo 2.');
+                btnContinue.textContent = 'CONTINUAR · CAPÍTULO 2';
+                btnContinue.style.display = '';
+            } else if (chapter === 2) {
+                setText(victoryTitle, 'FIN DEL CAPÍTULO 2 · ALDRIC DESCANSA');
+                setText(ui.victoryText, EPILOGUE2 + ' Pero al liberar a Aldric, algo antiguo despertó bajo la corteza... El Ciervo Hueco ha descubierto su verdadera identidad y sabe quién rompió el pacto. Continúa al Capítulo 3.');
+                btnContinue.textContent = 'CONTINUAR · CAPÍTULO 3';
+                btnContinue.style.display = '';
+            } else if (chapter === 3) {
+                setText(victoryTitle, 'FIN DEL CAPÍTULO 3 · LA CAÍDA');
+                setText(ui.victoryText, EPILOGUE3);
+                btnContinue.textContent = 'CONTINUAR · CAPÍTULO 4 (LOS BACKROOMS)';
                 btnContinue.style.display = '';
             } else {
-                setText(victoryTitle, 'FIN DEL CAPÍTULO 2 · ALDRIC DESCANSA');
-                setText(ui.victoryText, EPILOGUE2);
+                setText(victoryTitle, '¡HAS ESCAPADO DE LOS BACKROOMS!');
+                setText(ui.victoryText, EPILOGUE4);
                 btnContinue.style.display = 'none';
             }
             endGame(ui.victory);
@@ -6677,7 +7450,96 @@
             beginChapter2(false);
             if (!IS_MOBILE) tryLock();
         }
-        btnContinue.addEventListener('click', startChapter2);
+        // Capítulo 3: el Ciervo Hueco descubre su identidad y la tuya; el bosque se oscurece y se glitchea por todas partes
+        function beginChapter3(skipped) {
+            chapter = 3; TOTAL_PAGES = CH1_PAGES + CH2_PAGES + CH3_PAGES;
+            if (nextPage < CH1_PAGES + CH2_PAGES) nextPage = CH1_PAGES + CH2_PAGES;
+            inventory.pages = nextPage;
+            const d = daysPlayed;
+            [d, d, d + 1, d + 1, d + 2].forEach((v, k) => { PAGE_REVEAL_DAYS[CH1_PAGES + CH2_PAGES + k] = v; });
+            finalNight = false; finalChase = false;
+            ch3DayHunt = 0; ch3BreachCD = 22; ch3BurstT = 0; ch3TearT = 0.7; ch3SkyFlicker = 0.5;
+            objKey = '';
+            placePageObj();
+            updateInventoryHUD();
+            glitchPulse = 1;
+            playSound('glitchTear', 1);
+            playSound('distantBellow', 0.9);
+            setText(ui.noteTitle, 'CAPÍTULO 3 · LA FRACTURA DEL CIERVO');
+            setText(ui.noteText, (skipped ? 'Saltas directo al capítulo 3. ' : '') + 'Aldric Voss ya descansa, pero la máscara vacía despertó al verdadero Ciervo Hueco. Ahora conoce su propia identidad... y sabe quién destruyó su ciclo. La luz del bosque muere, la realidad empieza a fallar por todas partes y la criatura hará lo imposible por eliminarte a toda costa —incluso abriendo brechas a plena luz del día.');
+            setDisplay(ui.note, 'block'); noteTimer = 28;
+            playSound('pagePickup');
+        }
+        function startChapter3() {
+            gameEnded = false; wasLocked = false;
+            setDisplay(ui.victory, 'none');
+            beginChapter3(false);
+            if (!IS_MOBILE) tryLock();
+        }
+        // Capítulo 4: Los Backrooms (Nivel 0) · tras morir en el Núcleo del Capítulo 3 o mediante el código secreto /ch@pter-4s
+        function beginChapter4(skipped) {
+            gameEnded = false;
+            chapter = 4;
+            TOTAL_PAGES = CH1_PAGES + CH2_PAGES + CH3_PAGES + CH4_PAGES;
+            if (nextPage < CH1_PAGES + CH2_PAGES + CH3_PAGES) nextPage = CH1_PAGES + CH2_PAGES + CH3_PAGES;
+            inventory.pages = nextPage;
+            const d = daysPlayed;
+            for (let k = 0; k < CH4_PAGES; k++) PAGE_REVEAL_DAYS[CH1_PAGES + CH2_PAGES + CH3_PAGES + k] = d;
+            finalNight = false; finalChase = false; ch3Trap.active = false; ch3DayHunt = 0;
+            pendingGuide = false; pendingOmen = 0; pendingReveal = 0;
+            inTent = false; tentFrom = null; tentFx.state = 'idle'; tentFadeEl.style.opacity = 0; tentLight.intensity = 0;
+            objKey = '';
+            closeChest(true); if (craftOpen) toggleCraft(false); closePicker(true); if (stoveOpen) closeStove(); hideNote();
+            clearDrops();
+            for (let i = animals.length - 1; i >= 0; i--) removeAnimal(i);
+            resetMonsterAI(); clearTraces(); endIllusion();
+            monster.body.visible = false; monster.aura.intensity = 0; monster.position.set(BKX + 30, -10, BKZ + 30);
+            vigia.visible = false; VG.state = 'none';
+            brGraceT = 14;
+
+            player.position.set(BKX_SPAWN, 2.6, BKZ_SPAWN);
+            player.velocity.set(0, 0, 0);
+            player.onGround = false;
+            player.sanity = Math.max(player.sanity, 78);
+            yaw = 0; pitch = 0; lastYaw = 0; lastPitch = 0;
+
+            clearAllChunks();
+            streamChunks(BKX_SPAWN, BKZ_SPAWN, 1e9);
+            placePageObj();
+            updateInventoryHUD();
+            updateDayNightCycle(0);
+            clearCh3FX();
+            playSound('noclip', 1);
+            glitchPulse = 1;
+
+            if (sleepCine.active) sleepCine.active = false;
+            startWakeUp({
+                pose: 'blink',
+                dur: 3.4,
+                big: 'CAPÍTULO 4 · LOS BACKROOMS',
+                small: skipped ? 'Salto forzado fuera de la realidad...' : 'Caíste fuera de la realidad...',
+                msg: 'NIVEL 0 · BUSCA LAS 5 NOTAS Y LA PUERTA VERDE'
+            });
+            setTimeout(() => {
+                if (!started || gameEnded || chapter < 4) return;
+                setText(ui.noteTitle, 'CAPÍTULO 4 · LOS BACKROOMS (NIVEL 0)');
+                setText(ui.noteText, (skipped ? 'Saltas directo al capítulo 4. ' : 'El Ciervo Hueco te desgarró en el Núcleo... y el impacto rompió el suelo del mundo. ') + 'Despiertas en un laberinto interminable de alfombra húmeda, papel amarillo y zumbido fluorescente. Busca las 5 notas del Nivel 0 hasta la Puerta Verde de salida. Las lámparas del techo protegen tu cordura, pero el monstruo ya camina por estos pasillos.');
+                setDisplay(ui.note, 'block');
+                noteTimer = 28;
+                playSound('pagePickup');
+            }, 3500);
+        }
+        function startChapter4() {
+            gameEnded = false; wasLocked = false;
+            setDisplay(ui.victory, 'none');
+            beginChapter4(false);
+            if (!IS_MOBILE) tryLock();
+        }
+        btnContinue.addEventListener('click', () => {
+            if (chapter === 1) startChapter2();
+            else if (chapter === 2) startChapter3();
+            else if (chapter === 3) startChapter4();
+        });
 
         const MONSTER_RADIUS = 0.36;
 
@@ -6796,6 +7658,11 @@
             if (r.twitchT <= 0) { r.twitchT = 1.1 + Math.random() * 2.6; r.twitch = (Math.random() < 0.5 ? -1 : 1) * (0.32 + Math.random() * 0.48); }
             r.twitch = (r.twitch || 0) * Math.exp(-delta * 8);
             if (mode !== 'stun' && mode !== 'roar') { r.head.rotation.y += r.twitch; r.head.rotation.z += r.twitch * 0.55; }
+            if (chapter >= 3 && m === monster && (ch3TearT > 0 || Math.random() < 0.08)) {
+                r.head.rotation.y += (Math.random() - 0.5) * 0.48;
+                r.head.rotation.z += (Math.random() - 0.5) * 0.55;
+                r.neck.rotation.x += (Math.random() - 0.5) * 0.28;
+            }
             if (mode === 'scan') r.head.rotation.y += Math.sin(time * 1.7) * 0.95;
             if (mode === 'sniff') { r.head.rotation.x += 0.4 + Math.sin(time * 13) * 0.08; r.jaw.rotation.x = 0.1 + Math.abs(Math.sin(time * 13)) * 0.22; }
             if (mode === 'roar') { r.head.rotation.x -= 0.55; r.head.rotation.z += Math.sin(time * 46) * 0.07; }
@@ -6976,7 +7843,7 @@
             for (let i = 0; i < 12; i++) {
                 const ang = yaw + Math.PI + (Math.random() - 0.5) * 1.1, d = 10.5 + Math.random() * 2.5;
                 const x = px - Math.sin(ang) * d, z = pz - Math.cos(ang) * d;
-                if (monsterBlockedAt(x, z) || Math.hypot(x, z) < 7) continue;
+                if (monsterBlockedAt(x, z) || (!inBackrooms() && Math.hypot(x, z) < 7)) continue;
                 monster.position.x = x; monster.position.z = z;
                 return true;
             }
@@ -7110,13 +7977,14 @@
                         camera.getWorldDirection(_lookDir);
                         const vx = w.x + w.nx * 0.35 - px, vy = 2.0 - player.position.y, vz = w.z + w.nz * 0.35 - pz, d = Math.hypot(vx, vy, vz) || 1;
                         const contact = d < 9 && (_lookDir.x * vx + _lookDir.y * vy + _lookDir.z * vz) / d > 0.985;
-                        siege.gaze = contact ? siege.gaze + delta : Math.max(0, siege.gaze - delta * 1.5);
-                        const g = Math.min(1, siege.gaze / GAZE_LIMIT);
+                        const gLim = chapter >= 3 ? 2.1 : GAZE_LIMIT;
+                        siege.gaze = contact ? siege.gaze + delta : Math.max(0, siege.gaze - delta * (chapter >= 3 ? 0.9 : 1.5));
+                        const g = Math.min(1, siege.gaze / gLim);
                         monster.rig.eyeBoost = g;
                         if (g > 0) glitchPulse = Math.max(glitchPulse, g * 0.55);
                         siege.heartT -= delta;
                         if (siege.heartT <= 0) { siege.heartT = Math.max(0.3, 1.0 - g * 0.7); playSound('heartbeat', 0.6 + g * 0.6); }
-                        if (siege.gaze > GAZE_LIMIT) { siege.phase = 'rush'; siege.rush = 0; playSound('monsterScream'); }
+                        if (siege.gaze > gLim) { siege.phase = 'rush'; siege.rush = 0; playSound('monsterScream'); }
                         else if (siege.t <= 0) endSiegeMode();   // si lo ignoras, no pasa nada: se aburre y se va
                     }
                     break;
@@ -7412,7 +8280,7 @@
         const VG_MAX_LIFE = 110, VG_CHASE = 5.3, VG_CREEP = 1.5;   // vida máxima (s) · velocidad al perseguir (tú: 5.8) · al acechar al sol
         const SUN_D = new THREE.Vector3(30, 50, 30).normalize(), shadeCache = new Map();   // misma dirección que sunLight.position
         let shadeCacheT = 0;
-        function lightBlocks(ix, iy, iz) { const id = blockAt(ix, iy, iz); return id > 0 && id < 40 && id !== B.INVIS && id !== B.WATER; }
+        function lightBlocks(ix, iy, iz) { const id = blockAt(ix, iy, iz); return isSolidId(id) && id !== B.INVIS && id !== B.WATER; }
         function shadedAt(x, z, y) {   // ¿tapa algo el sol en ese punto? (se sigue el rayo hacia el sol)
             for (let t = 0.9; t <= 26; t += 0.8) {
                 const yy = y + SUN_D.y * t; if (yy > Y0 + CH - 1) return false;
@@ -7423,7 +8291,7 @@
         function groundShade(x, z) {   // sombra a la altura del pecho de la criatura (con caché de medio segundo)
             const key = Math.round(x * 2) * 65537 + Math.round(z * 2);
             let v = shadeCache.get(key);
-            if (v === undefined) { v = sunLight.intensity < 0.3 || shadedAt(x, z, 1.3); shadeCache.set(key, v); }
+            if (v === undefined) { v = sunLight.intensity < (chapter >= 3 ? 0.14 : 0.3) || shadedAt(x, z, 1.3); shadeCache.set(key, v); }
             return v;
         }
         function vigiaFade(burn) {   // se hunde en el suelo y desaparece; ya no vuelve hoy
@@ -7479,6 +8347,7 @@
             vigia.visible = false; shadeCache.clear();
         }
         function updateVigia(delta) {
+            if (inBackrooms()) { vigia.visible = false; return; }
             shadeCacheT -= delta; if (shadeCacheT <= 0) { shadeCache.clear(); shadeCacheT = 0.5; }
             if (vgVoiceT > 0) { vgVoiceT -= delta; if (vgVoiceT <= 0) vgVoiceEl.style.opacity = 0; }
             if (VG.state === 'caught') return;
@@ -7501,7 +8370,7 @@
             VG.shT -= delta;   // ¿estás en sombra? 5 veces por segundo y con dos lecturas seguidas iguales (sin parpadeos)
             if (VG.shT <= 0) {
                 VG.shT = 0.2;
-                const raw = sunLight.intensity < 0.3 || inTent || shadedAt(px, pz, player.position.y - 0.7);
+                const raw = sunLight.intensity < (chapter >= 3 ? 0.14 : 0.3) || inTent || shadedAt(px, pz, player.position.y - 0.7);
                 if (raw === VG.pRaw) VG.pN++; else { VG.pRaw = raw; VG.pN = 1; }
                 if (VG.pN >= 2) VG.pShade = raw;
             }
@@ -7558,7 +8427,11 @@
         }
 
         function updateMonster(delta) {
-            if (gameEnded || !isNight || monsterFreeNight()) return;
+            if (ch3Trap.active) return;
+            const ch3 = chapter >= 3;
+            const inBr = inBackrooms();
+            const huntActive = inBr || isNight || (ch3 && ch3DayHunt > 0);
+            if (gameEnded || !huntActive || (!inBr && isNight && monsterFreeNight())) return;
             nightClock += delta;
             stunHits = Math.max(0, stunHits - delta / 20);
             trackPrints();   // deja huellas allá por donde pasa
@@ -7577,9 +8450,10 @@
                 monster.aura.intensity = 0.4 + Math.random() * 0.3;
                 if (monsterStunTimer <= 0) {
                     monsterStunned = false;
-                    monsterState = 'retreat';
-                    monsterStateTimer = 3;
+                    monsterState = ch3 ? 'chase' : 'retreat';
+                    monsterStateTimer = ch3 ? 99 : 3;
                     coverTarget = null;
+                    if (ch3) { ch3TearT = 0.4; playSound('glitchTear', 0.8); }
                 }
                 return;
             }
@@ -7588,10 +8462,11 @@
             const startChase = () => {
                 coverTarget = null;
                 if (distP > 9 && !playerInside && monsterState !== 'chase') {   // antes de lanzarse, se detiene y ruge (aviso para el jugador)
-                    monsterState = 'roar'; roarT = 0.9;
+                    monsterState = 'roar'; roarT = ch3 ? 0.55 : 0.9;
                     monster.rotation.y = Math.atan2(px - monster.position.x, pz - monster.position.z);
                     playSound('growl', 1.15);
                     playSound('distantBellow', THREE.MathUtils.clamp(1.15 - distP / 40, 0.25, 0.95));
+                    if (ch3) { ch3TearT = Math.max(ch3TearT, 0.35); playSound('glitchTear', 0.7); }
                 } else {
                     monsterState = 'chase'; monsterStateTimer = 99;
                     playSound('growl', THREE.MathUtils.clamp(1.35 - distP / 30, 0.35, 1.1));
@@ -7600,35 +8475,40 @@
 
             // ¿Te ve (hay línea de visión entre troncos) y lo estás mirando? La visibilidad se refresca 4 veces por segundo.
             losT -= delta;
-            if (losT <= 0) { losT = 0.25; losCache = distP < 42 && hasLOS(mx, mz, px, pz); }
-            const seen = distP < 38 && losCache && playerLooksAt(mx, mz, 0.74);
+            if (losT <= 0) { losT = 0.25; losCache = distP < (ch3 ? 52 : 42) && hasLOS(mx, mz, px, pz); }
+            const seen = distP < (ch3 ? 46 : 38) && losCache && playerLooksAt(mx, mz, 0.74);
 
             // Presencia tenebrosa: ceniza roja y oscura desprendiéndose de su pecho hueco cuando acecha cerca
             erranteAshT -= delta;
             if (erranteAshT <= 0 && distP < 26) {
-                erranteAshT = monsterState === 'chase' ? 0.14 : 0.28;
-                spawnBurst(mx, 2.25, mz, Math.random() < 0.45 ? 0x9b0d06 : 0x160b0b, 1, 0.55, 0.85);
+                erranteAshT = monsterState === 'chase' ? (ch3 ? 0.09 : 0.14) : (ch3 ? 0.18 : 0.28);
+                const ashCol = ch3 ? (Math.random() < 0.3 ? 0x1ae8ff : (Math.random() < 0.65 ? 0xff1638 : 0x160b0b)) : (Math.random() < 0.45 ? 0x9b0d06 : 0x160b0b);
+                spawnBurst(mx, 2.25, mz, ashCol, 1, 0.6, 0.9);
             }
 
-            // --- Emboscada: un susurro y un latido avisan; 1.5 s después reaparece a tus espaldas y ruge antes de cargar ---
+            // --- Emboscada: un susurro y un latido avisan; en Cap. 3 embosca con mucha más frecuencia ---
             ambushCD -= delta;
             if (ambushWarn > 0) {
                 ambushWarn -= delta;
                 if (ambushWarn <= 0) {
-                    ambushCD = finalNight ? 18 + Math.random() * 8 : 26 + Math.random() * 14;
+                    ambushCD = ch3
+                        ? (finalNight ? 10 + Math.random() * 6 : 13 + Math.random() * 7)
+                        : (finalNight ? 18 + Math.random() * 8 : 26 + Math.random() * 14);
                     if (!checkSafeZone() && !nearFire(px, pz, 9) && tryAmbush(px, pz)) {
-                        monsterState = 'reveal'; revealTimer = 0.9; coverTarget = null;
+                        monsterState = 'reveal'; revealTimer = ch3 ? 0.55 : 0.9; coverTarget = null;
                         monster.rotation.y = Math.atan2(px - monster.position.x, pz - monster.position.z);
                         playSound('growl', 1.15); playSound('distantBellow', 0.9); glitchPulse = Math.max(glitchPulse, 0.85);
+                        if (ch3) { ch3TearT = 0.45; playSound('glitchTear', 0.9); }
                         animateMonster(delta, 0, 'reveal');
                         return;
                     }
                 }
-            } else if (ambushCD <= 0 && nightClock > 14 && distP > 16 && !playerInside && monsterState !== 'retreat' && !nearFire(px, pz, 9)) {
-                if (Math.random() < delta * 0.5) {
-                    ambushWarn = 1.5;
+            } else if (ambushCD <= 0 && (nightClock > (ch3 ? 6 : 14)) && distP > (ch3 ? 13 : 16) && !playerInside && monsterState !== 'retreat' && !nearFire(px, pz, 9)) {
+                if (Math.random() < delta * (ch3 ? 0.85 : 0.5)) {
+                    ambushWarn = ch3 ? 1.0 : 1.5;
                     playSound('whisper', 1); playSound('heartbeat', 1);
-                    glitchPulse = Math.max(glitchPulse, 0.5);
+                    if (ch3) playSound('glitchTear', 0.6);
+                    glitchPulse = Math.max(glitchPulse, 0.65);
                 }
             }
 
@@ -7637,28 +8517,30 @@
             coverCD -= delta;
             const S = monsterState;
             if (S === 'retreat') {
-                if (monsterStateTimer <= 0) { monsterState = 'stalk'; monsterStateTimer = 6 + Math.random() * 4; coverTarget = null; seenTimer = 0; }
+                if (monsterStateTimer <= 0) { monsterState = ch3 ? 'chase' : 'stalk'; monsterStateTimer = ch3 ? 99 : 6 + Math.random() * 4; coverTarget = null; seenTimer = 0; }
             } else if (S === 'stalk') {
                 if (playerInside ? (distP < 15 || monsterStateTimer <= 0)
-                                 : (distP < 11 || (monsterStateTimer <= 0 && !seen) || monsterStateTimer < -6)) {
+                                 : (distP < (ch3 ? 18 : 11) || (monsterStateTimer <= 0 && (!seen || ch3)) || monsterStateTimer < (ch3 ? -2 : -6))) {
                     startChase();
                 } else if (seen && !playerInside && distP > 11) {
                     seenTimer += delta;
-                    if (seenTimer > 2.0 && coverCD <= 0) {   // lo han visto: se esconde tras el árbol más cercano
+                    if (ch3 && seenTimer > 0.75) {   // en Cap. 3 mirarlo lo enfurece al instante
+                        startChase();
+                    } else if (!ch3 && seenTimer > 2.0 && coverCD <= 0) {   // lo han visto: se esconde tras el árbol más cercano
                         coverCD = 2.5;
                         coverTarget = findCover(mx, mz, px, pz);
                         if (coverTarget) { monsterState = 'hide'; monsterStateTimer = 5; }
                     }
                 } else seenTimer = Math.max(0, seenTimer - delta * 2);
             } else if (S === 'hide') {
-                if (distP < 9) startChase();
+                if (distP < 9 || ch3) startChase();
                 else if (!coverTarget || Math.hypot(coverTarget.x - mx, coverTarget.z - mz) < 0.8 || monsterStateTimer <= 0) {
                     monsterState = 'peek'; peekTimer = 1.6 + Math.random() * 1.8; seenTimer = 0;
                     monster.peekSide = Math.random() < 0.5 ? -1 : 1;
                 }
             } else if (S === 'peek') {
                 peekTimer -= delta;
-                if (distP < 10) startChase();
+                if (distP < 10 || ch3) startChase();
                 else if (peekTimer <= 0) { monsterState = 'stalk'; monsterStateTimer = Math.max(monsterStateTimer, 0) + 5; coverTarget = null; coverCD = 3; }
             } else if (S === 'reveal') {
                 revealTimer -= delta;
@@ -7670,7 +8552,7 @@
 
             // Mientras acecha (y no lo miras), de vez en cuando se detiene en un árbol a arañarlo
             scratchCD -= delta; idleCD -= delta;
-            if (monsterState === 'stalk' && scratchCD <= 0 && !seen && !playerInside && distP > 15) {
+            if (!ch3 && !inBr && monsterState === 'stalk' && scratchCD <= 0 && !seen && !playerInside && distP > 15) {
                 scratchCD = 2.5;
                 const tr = findTrunk(mx, mz);
                 if (tr && Math.random() < 0.4) startScratch(tr, mx, mz);
@@ -7679,14 +8561,14 @@
 
             growlTimer -= delta;
             if (growlTimer <= 0) {
-                growlTimer = 6.5 + Math.random() * 5.5;
+                growlTimer = (ch3 ? 4.2 : 6.5) + Math.random() * 4.5;
                 playSound('growl', THREE.MathUtils.clamp(1.25 - distP / 35, 0.18, 1.05));
             }
             bellowTimer -= delta;
             if (bellowTimer <= 0) {
-                bellowTimer = 14 + Math.random() * 12;
+                bellowTimer = (ch3 ? 9 : 14) + Math.random() * 10;
                 if (distP > 12) playSound('distantBellow', THREE.MathUtils.clamp(1.0 - distP / 52, 0.22, 0.85));
-                else playSound('whisper', 0.75);
+                else playSound('whisper', 0.85);
             }
 
             // Puerta bloqueada y jugador dentro: no puede romperla; asedia la cabaña (ver updateSiege)
@@ -7720,25 +8602,29 @@
             let speed = 0, frozen = false;
             switch (monsterState) {
                 case 'stalk':
-                    speed = 2.7;
-                    if (seen && !playerInside && distP > 11) {   // si lo miras, se queda inmóvil; si insistes, reptará despacio
+                    speed = ch3 ? 3.5 : 2.7;
+                    if (!ch3 && seen && !playerInside && distP > 11) {   // en Cap. 3 mirarlo ya no lo detiene
                         frozen = seenTimer < 2.0;
                         speed = frozen ? 0 : speed * 0.45;
                     }
                     // Pausas: olfatea el suelo o gira la cabeza vigilando
-                    if (idleAct.t <= 0 && idleCD <= 0 && !seen && !playerInside && distP > 14) {
+                    if (!ch3 && idleAct.t <= 0 && idleCD <= 0 && !seen && !playerInside && distP > 14) {
                         idleAct.mode = Math.random() < 0.5 ? 'sniff' : 'scan'; idleAct.t = 1.5 + Math.random() * 1.3; idleCD = 7 + Math.random() * 6;
                     }
                     if (idleAct.t > 0) { idleAct.t -= delta; speed = 0; }
                     break;
-                case 'hide': speed = 3.9; break;
+                case 'hide': speed = ch3 ? 4.6 : 3.9; break;
                 case 'peek': case 'reveal': case 'roar': speed = 0; break;
-                case 'retreat': speed = 4.2; break;
+                case 'retreat': speed = ch3 ? 5.0 : 4.2; break;
                 default:
-                    speed = finalChase ? 5.7 + THREE.MathUtils.clamp((distP - 12) * 0.15, 0, 1.2) : (finalNight ? 5.5 : 5.0);   // en la huida final no se rinde: acelera si te alejas
+                    speed = inBr
+                        ? 5.35
+                        : (ch3
+                            ? (finalChase ? 6.2 + THREE.MathUtils.clamp((distP - 12) * 0.16, 0, 1.3) : (finalNight ? 5.95 : 5.65))
+                            : (finalChase ? 5.7 + THREE.MathUtils.clamp((distP - 12) * 0.15, 0, 1.2) : (finalNight ? 5.5 : 5.0)));   // en la huida final no se rinde: acelera si te alejas
                     lungeTimer -= delta;
-                    if (lungeLeft > 0) { lungeLeft -= delta; speed = 7.2; }
-                    else if (lungeTimer <= 0 && distP < 11 && !playerInside) { lungeLeft = 0.9; lungeTimer = 5 + Math.random() * 3; }
+                    if (lungeLeft > 0) { lungeLeft -= delta; speed = inBr ? 7.4 : (ch3 ? 8.0 : 7.2); }
+                    else if (lungeTimer <= 0 && distP < (ch3 ? 13 : 11) && !playerInside) { lungeLeft = ch3 ? 1.05 : 0.9; lungeTimer = (ch3 ? 3.4 : 5) + Math.random() * 2.5; }
             }
 
             // El fuego la repele: no entra en el círculo de una fogata/antorcha, la rodea gruñendo, y cerca de cualquier llama va más lenta
@@ -7748,14 +8634,14 @@
                 const ox = mx - nf.f.x, oz = mz - nf.f.z, od = Math.hypot(ox, oz) || 1;
                 monster.position.x += ox / od * 3.2 * delta; monster.position.z += oz / od * 3.2 * delta;
             }
-            if (nearFire(mx, mz, 7)) speed *= 0.4;
+            if (nearFire(mx, mz, 7)) speed *= (ch3 ? 0.62 : 0.4);
 
-            // La linterna molesta a la criatura: si la apuntas, se ralentiza
+            // La linterna molesta a la criatura: si la apuntas, se ralentiza (menos en Cap. 3)
             let lit = false;
             if (flashlightOn && distP < 12) {
                 camera.getWorldDirection(_lookDir);
                 _toM.set(mx - px, 0, mz - pz).normalize();
-                if (_lookDir.x * _toM.x + _lookDir.z * _toM.z > 0.88) { speed *= 0.6; lit = true; }
+                if (_lookDir.x * _toM.x + _lookDir.z * _toM.z > 0.88) { speed *= (ch3 ? 0.82 : 0.6); lit = true; }
             }
 
             let dx = tx - mx, dz = tz - mz;
@@ -7861,14 +8747,14 @@
             if (!props.length) return;
             for (const p of props.slice()) {
                 if (p.type === 'plot') {   // la parcela desaparece si le quitan la tierra o le ponen un bloque encima
-                    const gone = (id === 0 && x === p.cx && y === p.cy - 1 && z === p.cz) || (id > 0 && id < 40 && x === p.cx && y === p.cy && z === p.cz);
+                    const gone = (id === 0 && x === p.cx && y === p.cy - 1 && z === p.cz) || (isSolidId(id) && x === p.cx && y === p.cy && z === p.cz);
                     if (gone) { if (p.crop && addItem('tseed', 1) <= 0) spawnDrop('tseed', 1, [p.x, p.y + 0.6, p.z]); removeProp(p); }
                     continue;
                 }
                 if (p.type !== 'ladder') continue;
                 const cx = Math.round(p.x), cz = Math.round(p.z);
                 const lostWall = id === 0 && x === cx + p.wx && y === p.cy && z === cz + p.wz;
-                const buried = id > 0 && id < 40 && x === cx && y === p.cy && z === cz;
+                const buried = isSolidId(id) && x === cx && y === p.cy && z === cz;
                 if (!lostWall && !buried) continue;
                 removeProp(p);
                 if (addItem('ladder', 1) <= 0) { spawnDrop('ladder', 1, [p.x, p.cy, p.z]); toast('MOCHILA LLENA: LA ESCALERA CAE AL SUELO'); }
@@ -7921,8 +8807,8 @@
             let px = x, py = y, pz = z, t = 0, plant = null;
             while (t <= maxD) {
                 const id = blockAt(x, y, z);
-                if (id > 0 && id < 40 && id !== B.INVIS) return { x, y, z, id, px, py, pz, t, plant };
-                if (id >= 40 && !plant) {   // matas/flores/hongos: solo cuentan si el rayo pasa cerca de la planta (no basta con cruzar su casilla)
+                if (isSolidId(id) && id !== B.INVIS) return { x, y, z, id, px, py, pz, t, plant };
+                if (isPlantId(id) && !plant) {   // matas/flores/hongos: solo cuentan si el rayo pasa cerca de la planta (no basta con cruzar su casilla)
                     const vx = x - camera.position.x, vy = y - 0.2 - camera.position.y, vz = z - camera.position.z;
                     const proj = vx * _rd.x + vy * _rd.y + vz * _rd.z;
                     if (proj > 0 && vx * vx + vy * vy + vz * vz - proj * proj < 0.2) plant = { x, y, z, id };
@@ -8842,7 +9728,8 @@
             const e = edits.get(chunkKey(x >> 4, z >> 4));
             return !!e && e.get(((y - Y0) * CS + (z & 15)) * CS + (x & 15)) > 0;
         }
-        function breakable(f) {   // la cabaña, el porche y el tejado no se rompen (salvo lo que el jugador haya puesto)
+        function breakable(f) {   // la cabaña, el porche, el tejado y los muros de los Backrooms no se rompen (salvo lo que el jugador haya puesto)
+            if (isBackroomChunk(f.x >> 4, f.z >> 4) && !isPlayerBlock(f.x, f.y, f.z) && f.id >= B.BR_WALL && f.id <= B.BR_EXIT) return false;
             return f.y >= 1 && !pocketShell(f.x, f.y, f.z) && (isPlayerBlock(f.x, f.y, f.z) || !(Math.abs(f.x) <= 4 && f.z >= -4 && f.z <= 6 && f.y <= 9));
         }
         function focusPrompt() {
@@ -9034,9 +9921,9 @@
         function miniScare(g) {   // susto corto (ilusiones): solo sacudida de cámara. La cara del monstruo ya NO aparece aquí: solo en el jumpscare real (updateScare)
             fovPunch = Math.max(fovPunch, 6 + 10 * (g || 0.5));
         }
-        function startJumpscare(title, desc, who, soft) {   // who: criatura que te alcanza (por defecto, el Errante) · soft: no mata, te devuelve a tu punto de reaparición
+        function startJumpscare(title, desc, who, soft) {   // who: criatura que te alcanza (por defecto, el Errante) · soft: true (Vigía) | 'backrooms' (fin Cap. 3)
             if (scare.active || gameEnded) return;
-            const S = scare, M = who || monster; S.m = M; S.soft = !!soft;
+            const S = scare, M = who || monster; S.m = M; S.toBackrooms = soft === 'backrooms'; S.soft = !S.toBackrooms && !!soft;
             S.active = true; S.t = 0; S.title = title; S.desc = desc; S.flashOn = false;
             closeChest(true); if (craftOpen) toggleCraft(false); closePicker(true);
             clearInputs(); mining = false; hand.visible = false; hideNote();
@@ -9128,7 +10015,7 @@
             if (t >= SC_END) endScare();
         }
         function resetScare() {
-            scare.active = false;
+            scare.active = false; scare.toBackrooms = false;
             scareFace.style.opacity = 0; scareImgA.style.opacity = 0; scareImgB.style.opacity = 0; scareImgV.style.opacity = 0; scareScan.style.opacity = 0;
             scareImgA.style.transform = ''; scareImgB.style.transform = ''; scareImgV.style.transform = '';
             scareImgA.style.filter = ''; scareImgB.style.filter = ''; scareImgV.style.filter = '';
@@ -9137,8 +10024,9 @@
             fovCur = 75; fovPunch = 0; camera.fov = adaptFov(75); camera.updateProjectionMatrix();
         }
         function endScare() {
-            const title = scare.title, desc = scare.desc, soft = scare.soft;
+            const title = scare.title, desc = scare.desc, soft = scare.soft, toBackrooms = scare.toBackrooms;
             resetScare();
+            if (toBackrooms) { beginChapter4(false); return; }
             if (soft) { vigiaCaptured(); return; }   // el Vigía no mata: te arrastra y despiertas en tu último punto de reaparición
             endGame(ui.death, title, desc);
         }
@@ -9194,7 +10082,7 @@
             if (!f || f.type !== 'block') return { ok: false, msg: 'APUNTA A UN BLOQUE' };
             const { px, py, pz } = f, solidKind = typeof PLACEABLE[k] === 'number';
             const there = blockAt(px, py, pz);
-            if (py < 1 || py >= CH + Y0 - 2 || (there > 0 && there < 40) || (px === 0 && pz === 3 && py <= 2)) return { ok: false, msg: '' };
+            if (py < 1 || py >= CH + Y0 - 2 || isSolidId(there) || (px === 0 && pz === 3 && py <= 2)) return { ok: false, msg: '' };
             if (monster.body.visible && Math.hypot(monster.position.x - px, monster.position.z - pz) < 1.2) return { ok: false, msg: '' };
             if (k === 'ladder') {   // solo en la cara lateral de un bloque (no en suelo ni techo) y sin repetir en la misma casilla/pared
                 if (f.y !== py) return { ok: false, msg: 'PÉGALA A UNA PARED' };
@@ -9282,7 +10170,7 @@
             const id = f.id;
             if (!((id >= B.GRASS_DARK && id <= B.GRASS_PLAINS) || id === B.DIRT)) { toast('SOLO SE LABRA TIERRA Y CÉSPED'); return; }
             if ((px === 0 && pz === 3 && py <= 2) || props.some(q => q.type !== 'ladder' && Math.abs(q.x - px) < 0.6 && Math.abs(q.z - pz) < 0.6 && Math.abs(q.y - (py - 0.5)) < 0.7)) { toast('HAY ALGO AHÍ'); return; }
-            if (blockAt(px, py, pz) >= 40) setBlock(px, py, pz, 0);   // arranca hierba/flores que estorben
+            if (isPlantId(blockAt(px, py, pz))) setBlock(px, py, pz, 0);   // arranca hierba/flores que estorben
             addProp('plot', px, py - 0.5, pz);
             spawnBurst(px, py - 0.4, pz, 0x4a2f1a, 9, 1.6, 2);
             playSound('till'); kick('till'); useTool('hoe');
@@ -9744,7 +10632,7 @@
             L.pts.geometry.attributes.position.needsUpdate = true; L.pts.geometry.attributes.color.needsUpdate = true;
         }
         function updateLife(delta) {
-            const calm = !gameEnded && !scare.active && !inTent && wxRain < 0.2;
+            const calm = !gameEnded && !scare.active && !inTent && !inBackrooms() && wxRain < 0.2;
             stepLife(BUTTERFLIES, delta, calm && !isNight && sunLight.intensity > 0.6);
             stepLife(FIREFLIES, delta, calm && isNight);
         }
@@ -9764,7 +10652,7 @@
         let fallT = 0;
         const leafTint = (id) => id === B.AUTUMN_LEAF ? [0.8, 0.4, 0.1] : id === B.BIRCH_LEAF ? [0.42, 0.62, 0.2] : id === B.PINE_LEAF ? [0.12, 0.3, 0.2] : id === B.WILLOW_LEAF ? [0.36, 0.46, 0.3] : [0.2, 0.36, 0.13];
         function updateFallingLeaves(delta) {
-            const on = !gameEnded && !scare.active && !inTent && wxRain < 0.6;
+            const on = !gameEnded && !scare.active && !inTent && !inBackrooms() && wxRain < 0.6;
             fallPts.visible = on; if (!on) return;
             fallT -= delta;
             if (fallT <= 0) {   // suelta una hoja desde una copa cercana (si hay)
@@ -9876,7 +10764,7 @@
         }
         function breakTime(id) {
             if (id === B.P_ROCK) return 0.35;   // las piedras pequeñas del suelo se recogen casi sin esfuerzo
-            if (id >= 40) return 0.2;   // matas, flores y hongos del suelo se arrancan casi al instante
+            if (isPlantId(id)) return 0.2;   // matas, flores y hongos del suelo se arrancan casi al instante
             if (LOGS.has(id)) return inventory.axe ? 0.8 : 2.6;
             if (LEAVES.has(id)) return 0.35;
             if (STONES.has(id) || id === B.SMOOTH || id === B.IRONB) return inventory.pick ? (id === B.IRONB ? 1.4 : 0.9) : 4.2;
@@ -10168,6 +11056,7 @@
             return c[0][0];
         }
         function trySpawnAnimal(px, pz) {
+            if (inBackrooms()) return;
             const rmax = VIEW_R * CS - 4, rmin = Math.min(22, rmax - 6);
             for (let t = 0; t < 6; t++) {
                 const ang = Math.random() * Math.PI * 2, r = rmin + Math.random() * (rmax - rmin);
@@ -10563,7 +11452,7 @@
             }
         }
         function updateIllusion(delta) {
-            if ((isNight && !monsterFreeNight()) || finalNight || gameEnded || inTent || (estabList.length > 0 && estabLevelAt(player.position.x, player.position.z) >= 4)) { if (ill.type) endIllusion(); return; }   // en las noches sin monstruo, las ilusiones siguen
+            if ((isNight && !monsterFreeNight()) || finalNight || gameEnded || inTent || inBackrooms() || (estabList.length > 0 && estabLevelAt(player.position.x, player.position.z) >= 4)) { if (ill.type) endIllusion(); return; }   // en las noches sin monstruo, las ilusiones siguen
             const px = player.position.x, pz = player.position.z;
             if (!ill.type) {
                 ill.timer -= delta;
@@ -10839,6 +11728,7 @@
             handBApplied = -1;
         }
         function handBrightness() {   // sin luces: se atenúa a mano de noche; las llamas y el fuego cercano la iluminan
+            if (inBackrooms()) return flashlightOn ? 0.96 : 0.72;
             if (!isNight) return 1;
             let b = flashlightOn ? 0.78 : 0.5;
             if (nearFire(player.position.x, player.position.z, 7)) b = Math.max(b, 0.9);
@@ -10977,6 +11867,7 @@
         beacon.visible = false;
         scene.add(beacon);
         function updateBeacon() {
+            if (inBackrooms()) { if (beacon.visible) beacon.visible = false; return; }
             const d = Math.hypot(player.position.x - BEACON_X, player.position.z - BEACON_Z);
             let v = THREE.MathUtils.clamp((d - BEACON_FROM) / (BEACON_FULL - BEACON_FROM), 0, 1);
             v = v * v * (3 - 2 * v);
@@ -11198,9 +12089,19 @@
             }
 
             // Cordura
+            const inBr = inBackrooms();
             const isSafe = checkSafeZone();
             const atFire = nearFire(player.position.x, player.position.z, 5.5) || bonfireNear(player.position.x, player.position.z, BONFIRE_SAFE - 2.4) || (estabList.length > 0 && estabLevelAt(player.position.x, player.position.z) >= 2);
-            if (!isSafe && !atFire && isNight) {
+            const underBrLight = inBr && blockAt(Math.floor(player.position.x + 0.5), 6, Math.floor(player.position.z + 0.5)) === B.BR_LIGHT;
+            if (inBr) {
+                if (underBrLight || isSafe || atFire) {
+                    player.sanity = Math.min(100, player.sanity + delta * 6 * (player.hunger <= 0 ? 0 : 1));
+                } else {
+                    let drain = SANITY_DRAIN * (flashlightOn ? 0.35 : 0.7);
+                    if (heldKey === 'torch' || heldKey === 'lantern' || heldKey === 'fire' || heldKey === 'bonfire') drain *= 0.6;
+                    player.sanity = Math.max(0, player.sanity - delta * drain);
+                }
+            } else if (!isSafe && !atFire && isNight) {
                 // Con luz la oscuridad pesa menos: linterna encendida, llevar una llama en la mano o tener una antorcha/farol cerca
                 let drain = SANITY_DRAIN;
                 if (flashlightOn) drain *= 0.6;
@@ -11230,17 +12131,18 @@
             else if (player.hunger < HUNGER_LOW && !hungerWarned) { hungerWarned = true; toast('TIENES HAMBRE: ROMPE HOJAS DE ÁRBOLES PARA ENCONTRAR FRUTOS'); }
             if (player.hunger > 45) { hungerWarned = false; starveWarned = false; }
 
-            // Efecto visual: la cordura baja tiñe la pantalla de rojo y la cercanía del Errante oprime la visión
+            // Efecto visual: la cordura baja tiñe la pantalla de rojo y la cercanía del Errante / Cap. 3 oprimen la visión
             glitchPulse = Math.max(0, glitchPulse - delta * 2.5);
             const sanityGlitch = (1 - player.sanity / 100) * 0.55;
             let erranteDread = 0;
-            if (isNight && monster.body.visible && !inTent && !monsterFreeNight()) {
+            if ((inBr || isNight || (chapter >= 3 && ch3DayHunt > 0)) && monster.body.visible && !inTent && (inBr || !isNight || !monsterFreeNight())) {
                 const dm = Math.hypot(monster.position.x - player.position.x, monster.position.z - player.position.z);
                 if (dm < 20) erranteDread = THREE.MathUtils.clamp((1 - dm / 20) * (monsterState === 'chase' ? 0.55 : 0.35), 0, 0.55);
             }
-            const glitchValue = Math.max(glitchPulse, sanityGlitch, erranteDread * 0.65).toFixed(2);
+            const ch3BaseGlitch = chapter === 3 ? (ch3TearT > 0 ? 0.55 : 0.14) : (inBr ? (ch3TearT > 0 ? 0.38 : 0.04) : 0);
+            const glitchValue = Math.max(glitchPulse, sanityGlitch, erranteDread * 0.65, ch3BaseGlitch).toFixed(2);
             if (ui.glitch._o !== glitchValue) { ui.glitch.style.opacity = glitchValue; ui.glitch._o = glitchValue; }
-            const vigLevel = Math.round(erranteDread * 10);
+            const vigLevel = Math.round(Math.max(erranteDread, chapter === 3 ? 0.25 : (inBr ? 0.1 : 0)) * 10);
             if (ui.vignette._lvl !== vigLevel) {
                 ui.vignette._lvl = vigLevel;
                 ui.vignette.style.boxShadow = vigLevel > 0
@@ -11250,9 +12152,34 @@
 
             if (player.sanity <= 0) {
                 if (player.hunger <= 0) endGame(ui.death, '¡MORISTE DE HAMBRE!', 'Sin nada que comer, el bosque terminó de consumirte. Rompe hojas y hongos para encontrar comida.');
-                else endGame(ui.death, '¡PERDISTE LA CORDURA!', 'La oscuridad del bosque te consumió por completo.');
+                else endGame(ui.death, '¡PERDISTE LA CORDURA!', inBr ? 'El zumbido amarillo de los Backrooms quebró tu mente por completo.' : 'La oscuridad del bosque te consumió por completo.');
             }
             if (gameEnded) return;
+
+            // Trampa final del Capítulo 3: el Ciervo Hueco te inmoviliza en el Núcleo y te mata antes de caer a los Backrooms
+            if (ch3Trap.active) {
+                ch3Trap.t += delta;
+                jumpRequested = false;
+                player.velocity.x = 0; player.velocity.z = 0; player.velocity.y = Math.min(0, player.velocity.y - 22 * delta);
+                const dxT = player.position.x - monster.position.x, dzT = player.position.z - monster.position.z;
+                const dT = Math.hypot(dxT, dzT) || 0.01;
+                monster.position.x += (dxT / dT) * 13.5 * delta;
+                monster.position.z += (dzT / dT) * 13.5 * delta;
+                monster.position.y = 0.5;
+                monster.rotation.y = Math.atan2(dxT, dzT);
+                animateMonster(delta, 13.5, 'chase');
+                monster.aura.intensity = 3.5 + Math.random() * 1.5;
+                if (monster.rig) monster.rig.eyeBoost = 1;
+                glitchPulse = 1;
+                fovPunch = Math.max(fovPunch, 7);
+                const lookTo = Math.atan2(-dxT, -dzT);
+                yaw += wrapPi(lookTo - yaw) * Math.min(1, delta * 9);
+                if (dT < 1.75 || ch3Trap.t > 1.05) {
+                    ch3Trap.active = false;
+                    startJumpscare('EL CIERVO HUECO TE DESGARRÓ', 'El núcleo se cerró contigo dentro... Caíste fuera de la realidad.', monster, 'backrooms');
+                    return;
+                }
+            }
 
             // Movimiento
             const inLakeXZ = lakeAt(player.position.x, player.position.z, 0);
@@ -11264,16 +12191,18 @@
             _fwd.set(0, 0, -1).applyAxisAngle(_up, yaw);
             _side.set(1, 0, 0).applyAxisAngle(_up, yaw);
             _move.set(0, 0, 0);
-            if (keys['KeyW']) _move.add(_fwd);
-            if (keys['KeyS']) _move.sub(_fwd);
-            if (keys['KeyD']) _move.add(_side);
-            if (keys['KeyA']) _move.sub(_side);
-            _move.addScaledVector(_fwd, -moveInput.y);
-            _move.addScaledVector(_side, moveInput.x);
+            if (!ch3Trap.active) {
+                if (keys['KeyW']) _move.add(_fwd);
+                if (keys['KeyS']) _move.sub(_fwd);
+                if (keys['KeyD']) _move.add(_side);
+                if (keys['KeyA']) _move.sub(_side);
+                _move.addScaledVector(_fwd, -moveInput.y);
+                _move.addScaledVector(_side, moveInput.x);
+            }
             const moving = _move.lengthSq() > 0.01;
             if (_move.lengthSq() > 1) _move.normalize();
 
-            const speed = player.hunger < 15 ? 4.8 : 5.8;   // débil por el hambre
+            const speed = ch3Trap.active ? 0 : (player.hunger < 15 ? 4.8 : 5.8);   // débil por el hambre
             player.velocity.x = _move.x * speed;
             player.velocity.z = _move.z * speed;
 
@@ -11332,7 +12261,8 @@
 
             // Red de seguridad por si algo falla en las colisiones
             if (player.position.y < -12) {
-                player.position.set(0, 2.6, 0);
+                if (inBackrooms()) player.position.set(BKX_SPAWN, 2.6, BKZ_SPAWN);
+                else player.position.set(0, 2.6, 0);
                 player.velocity.set(0, 0, 0);
             }
 
@@ -11403,7 +12333,13 @@
             // HUD de zona
             const doorExposed = isSafe && !inTent && isNight && door.state !== 'closed';
             let zoneTxt, danger;
-            if (atFire) { zoneTxt = 'JUNTO A LA FOGATA'; danger = false; }
+            if (inBr) {
+                const bgx = Math.floor((player.position.x - BKX) / BR_CELL), bgz = Math.floor((player.position.z - BKZ) / BR_CELL);
+                if (bgx <= -4 && bgz >= 3) { zoneTxt = 'SECTOR CARMESÍ'; danger = true; }
+                else if (monster.body.visible) { zoneTxt = '¡ALGO EN LOS PASILLOS!'; danger = true; }
+                else { zoneTxt = underBrLight ? 'BAJO FLUORESCENTE (SEGURO)' : 'NIVEL 0 · LOS BACKROOMS'; danger = false; }
+            }
+            else if (atFire) { zoneTxt = 'JUNTO A LA FOGATA'; danger = false; }
             else if (!isSafe) { zoneTxt = isNight ? '¡EN PELIGRO!' : 'FUERA (DÍA)'; danger = isNight; }
             else if (doorExposed) { zoneTxt = '¡PUERTA ABIERTA!'; danger = true; }
             else { zoneTxt = inTent ? 'CASA DE ACAMPAR (SEGURO)' : 'DENTRO (SEGURO)'; danger = false; }
@@ -11496,6 +12432,10 @@
 
             nextPage = 0;
             chapter = 1; TOTAL_PAGES = CH1_PAGES; for (let k = CH1_PAGES; k < PAGE_REVEAL_DAYS.length; k++) PAGE_REVEAL_DAYS[k] = 0; btnContinue.style.display = 'none';
+            ch3GlitchT = 0; ch3BurstT = 0; ch3TearT = 0; ch3CorruptT = 0; ch3BreachCD = 32; ch3DayHunt = 0; ch3SkyFlicker = 0;
+            ch3Trap.active = false; brGraceT = 0; ch4Skipping = false;
+            for (let i = 0; i < backroomLights.length; i++) backroomLights[i].intensity = 0;
+            clearCh3FX();
             finalNight = false; finalChase = false; hintedPages.clear(); pendingHint = false; pendingGuide = false; pendingOmen = 0; scratchSeen = false; collectedNotes.clear();
             verity.state = verityUnlocked ? 'follow' : 'off'; verity.pos.copy(player.position); verity.t = 0;   // Verity sigue desbloqueada durante la sesión
             resetScare();
@@ -11586,7 +12526,7 @@
             sv.sanity = player.sanity; sv.hunger = player.hunger; sv.flash = flashlightOn;
             sv.dayTime = dayTime; sv.days = daysPlayed; sv.weather = weather; sv.wx = [wxCloud, wxRain, wxFog];
             sv.inv = Object.assign({}, inventory); sv.slots = slots.slice(); sv.selSlot = selSlot; sv.owned = [...ownedSeen]; sv.disc = [...discovered]; sv.durab = Object.assign({}, durab);
-            sv.chapter = chapter; sv.nextPage = nextPage; sv.reveal = Array.from(PAGE_REVEAL_DAYS); sv.finalNight = finalNight; sv.finalChase = finalChase; sv.hinted = [...hintedPages]; sv.scratch = scratchSeen; sv.notes = [...collectedNotes];
+            sv.chapter = chapter; sv.nextPage = nextPage; sv.reveal = Array.from(PAGE_REVEAL_DAYS); sv.finalNight = finalNight; sv.finalChase = finalChase; sv.hinted = [...hintedPages]; sv.scratch = scratchSeen; sv.notes = [...collectedNotes]; sv.brGraceT = brGraceT;
             sv.planks = [...collectedPlanks]; sv.chests = [...lootedChests];
             sv.door = { state: door.state, planks: door.planks, damage: door.damage };
             sv.tentUpg = { level: tentUpg.level, dep: tentUpg.dep }; sv.pocketInit = pocketInit;
@@ -11676,9 +12616,10 @@
                 collectedPlanks.clear(); (sv.planks || []).forEach((k) => collectedPlanks.add(k));
                 lootedChests.clear(); (sv.chests || []).forEach((k) => lootedChests.add(k));
                 // historia, tiempo y clima
-                chapter = sv.chapter || 1; TOTAL_PAGES = chapter >= 2 ? CH1_PAGES + CH2_PAGES : CH1_PAGES;
+                chapter = sv.chapter || 1;
+                TOTAL_PAGES = chapter >= 4 ? CH1_PAGES + CH2_PAGES + CH3_PAGES + CH4_PAGES : (chapter >= 3 ? CH1_PAGES + CH2_PAGES + CH3_PAGES : (chapter >= 2 ? CH1_PAGES + CH2_PAGES : CH1_PAGES));
                 (sv.reveal || []).forEach((v, i) => { PAGE_REVEAL_DAYS[i] = v; });
-                nextPage = sv.nextPage || 0; finalNight = !!sv.finalNight; finalChase = !!sv.finalChase; scratchSeen = !!sv.scratch;
+                nextPage = sv.nextPage || 0; finalNight = !!sv.finalNight; finalChase = !!sv.finalChase; scratchSeen = !!sv.scratch; brGraceT = sv.brGraceT || 0;
                 hintedPages.clear(); (sv.hinted || []).forEach((k) => hintedPages.add(k));
                 collectedNotes.clear(); (sv.notes || []).forEach((k) => collectedNotes.add(k));
                 dayTime = sv.dayTime || 0; daysPlayed = sv.days || 1; setText(ui.dayCount, `DÍA ${daysPlayed}`);
@@ -11713,7 +12654,18 @@
                 return true;
             } catch (e) { console.error('Error al cargar la partida', e); return false; }
         }
-        function afterLoadSpawn() {   // al cargar: despiertas dentro de la cabaña (por defecto), en tu punto de reaparición o donde guardaste
+        function afterLoadSpawn() {   // al cargar: despiertas dentro de la cabaña (por defecto), en tu punto de reaparición o donde guardaste (en Cap. 4 siempre en los Backrooms)
+            if (chapter >= 4) {
+                if (OPT.cont !== 'saved') {
+                    player.position.set(BKX_SPAWN, 2.6, BKZ_SPAWN); player.velocity.set(0, 0, 0); player.onGround = false;
+                    yaw = 0; pitch = 0; lastYaw = 0; lastPitch = 0;
+                    streamChunks(BKX_SPAWN, BKZ_SPAWN, 1e9);
+                }
+                startWakeUp({ pose: 'blink', big: 'CAPÍTULO 4 · LOS BACKROOMS', dur: 2.8,
+                    small: 'Despiertas en los pasillos amarillos...',
+                    msg: 'PARTIDA CARGADA · NIVEL 0 (LOS BACKROOMS)' });
+                return;
+            }
             const mode = OPT.cont;
             if (mode === 'cabin' || mode === 'respawn') {
                 const R = mode === 'cabin' ? { x: 0, y: 2.6, z: 0 } : respawn;
@@ -11911,8 +12863,8 @@
                 if (!gameEnded) {
                     if (scare.active) updateScare(delta);   // jumpscare: la cámara y la criatura son lo único que se mueve
                     else if (sleepCine.active) updateSleep(delta);   // durmiendo: el mundo se detiene salvo el reloj y la cámara
-                    else { updatePhysics(delta); if (!inTent) { updateMonster(delta); updateAnimals(delta); updateVigia(delta); } else vigia.visible = false; updateVerity(delta); }
-                }
+                    else { updateChapter3FX(delta); updatePhysics(delta); if (!inTent) { updateMonster(delta); updateAnimals(delta); updateVigia(delta); } else vigia.visible = false; updateVerity(delta); }
+                } else clearCh3FX();
                 updateFollowers();
                 animatePickups(); updateDrops(delta); updateWake(delta); updateGuitar(delta); updateLife(delta); updateWet(delta); updateFallingLeaves(delta);
                 streamChunks(player.position.x, player.position.z, STREAM_BUDGET);
