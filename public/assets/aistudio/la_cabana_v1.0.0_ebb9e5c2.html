@@ -2042,7 +2042,7 @@
         function hitDoor(delta) {
             door.shake = 1;
             if (door.planks > 0) return;   // con tablas puestas aguanta los golpes indefinidamente: la puerta bloqueada es inquebrantable
-            door.damage += delta * (chapter >= 3 ? 2.0 : 1.0);   // en el capítulo 3 golpea con furia doble
+            door.damage += delta * (chapter === 3 ? 1.25 : 1.0);   // en el capítulo 3 golpea un poco más fuerte, pero aguanta más
             if (door.damage >= doorStrength()) {
                 door.state = 'broken';
                 door.planks = 0;
@@ -2523,7 +2523,7 @@
         const isBackroomChunk = (cx, cz) => isBr1Chunk(cx, cz) || isBr2Chunk(cx, cz);
         const activeBrOrigin = () => (Math.abs(player.position.x - BKX2) < 340 && Math.abs(player.position.z - BKZ2) < 340)
             ? { x: BKX2, z: BKZ2, level: 2 } : { x: BKX, z: BKZ, level: 1 };
-        const inBackrooms = () => chapter >= 4 && !backroomsEscaped && !inTent && (
+        const inBackrooms = () => chapter === 4 && !backroomsEscaped && !inTent && (
             (Math.abs(player.position.x - BKX) < 320 && Math.abs(player.position.z - BKZ) < 320) ||
             (Math.abs(player.position.x - BKX2) < 320 && Math.abs(player.position.z - BKZ2) < 320)
         );
@@ -2678,6 +2678,7 @@
             if (nextPage > 14) L.push('<p><b>Furia absoluta:</b> ya no se queda inmóvil si lo miras —mirarlo lo enfurece—, rompe puertas sin tablas al doble de velocidad y apenas cede ante la linterna.</p>');
             if (nextPage > 15) L.push('<p><b>Su punto débil final:</b> sigue respetando las fogatas encendidas, los territorios sagrados, las puertas reforzadas con tablas y el flash de la cámara (aunque se recupera más rápido).</p>');
             if (nextPage > 16) L.push('<p><b>El Núcleo y Los Backrooms (Cap. 4):</b> al caer al Nivel 1 estás a salvo para explorar sin monstruo ni hambre siguiendo las flechas; al cruzar al Nivel 2 el monstruo te persigue hasta la Puerta de Salida que devuelve al mundo principal.</p>');
+            if (chapter >= 5) L.push('<p><b>Paz en el bosque (Cap. 5):</b> al salir de los Backrooms la pesadilla terminó; no hay monstruos ni ilusiones ni de día ni de noche. El bosque volvió a la normalidad para explorar y construir.</p>');
             return L.join('');
         }
         const nearAnySite = (x, z, r) => STORY_SITES.some(s => Math.hypot(s.x - x, s.z - z) < r);
@@ -4324,8 +4325,8 @@
             }
         }
 
-        // --- Flechas 3D luminosas en el suelo que indican el camino en Los Backrooms (BFS sobre celdas 6x6) ---
-        const BR_ARROWS_N = 18;
+        // --- Flechas 3D luminosas en el suelo que indican el camino en Los Backrooms (máximo 3 por página/objetivo) ---
+        const BR_ARROWS_N = 3;
         const brArrowMat = new THREE.MeshBasicMaterial({ color: 0xffe45e, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, fog: false });
         const brArrows = [];
         (function initBrArrows() {
@@ -4338,6 +4339,7 @@
                 const r = new THREE.Mesh(armA, m); r.position.set(0.16, 0, -0.14); r.rotation.y = -0.62;
                 const t = new THREE.Mesh(tailG, m); t.position.set(0, 0, 0.12);
                 g.add(l, r, t);
+                g.scale.setScalar(1.15);
                 g.visible = false;
                 scene.add(g);
                 brArrows.push({ g, m });
@@ -4412,20 +4414,19 @@
                 brPathCells = computeBrPath(pgx, pgz, ggx, ggz, isL2);
             }
             const pts = [];
-            for (let i = 0; i < brPathCells.length - 1; i++) {
+            const maxSteps = Math.min(BR_ARROWS_N, Math.max(0, brPathCells.length - 1));
+            for (let i = 0; i < maxSteps; i++) {
                 const a = brPathCells[i], b = brPathCells[i + 1];
                 const ax = baseX + a.gx * BR_CELL + 3, az = baseZ + a.gz * BR_CELL + 3;
                 const bx = baseX + b.gx * BR_CELL + 3, bz = baseZ + b.gz * BR_CELL + 3;
                 const dx = bx - ax, dz = bz - az;
-                const rotY = Math.atan2(-dx, -dz);
-                pts.push({ x: ax + dx * 0.2, z: az + dz * 0.2, rotY });
-                pts.push({ x: ax + dx * 0.68, z: az + dz * 0.68, rotY });
+                pts.push({ x: ax + dx * 0.5, z: az + dz * 0.5, rotY: Math.atan2(-dx, -dz) });
             }
-            if (brPathCells.length >= 1) {
+            if (pts.length === 0 && brPathCells.length >= 1) {
                 const last = brPathCells[brPathCells.length - 1];
                 const lx = baseX + last.gx * BR_CELL + 3, lz = baseZ + last.gz * BR_CELL + 3;
                 const dx = tx - lx, dz = tz - lz;
-                if (Math.hypot(dx, dz) > 0.6) {
+                if (Math.hypot(dx, dz) > 0.8) {
                     pts.push({ x: lx + dx * 0.35, z: lz + dz * 0.35, rotY: Math.atan2(-dx, -dz) });
                 }
             }
@@ -4437,7 +4438,7 @@
                     ar.g.position.set(p.x, 0.535, p.z);
                     ar.g.rotation.y = p.rotY;
                     ar.m.color.setHex(arrowHex);
-                    ar.m.opacity = 0.52 + 0.44 * (0.5 + 0.5 * Math.sin(time * 5.2 - i * 0.75));
+                    ar.m.opacity = 0.55 + 0.42 * (0.5 + 0.5 * Math.sin(time * 5.2 - i * 0.9));
                 } else {
                     ar.g.visible = false;
                 }
@@ -4678,7 +4679,7 @@
 
         // Cada fotograma: muestra lo que toca según el día y dispara el susto la primera vez que ves los arañazos
         function updateStoryProps() {
-            if (inBackrooms()) { scratchMesh.visible = hoof1.visible = hoof2.visible = false; return; }
+            if (inBackrooms() || chapter >= 5) { scratchMesh.visible = hoof1.visible = hoof2.visible = false; return; }
             scratchMesh.visible = daysPlayed >= SCRATCH_DAY;
             hoof1.visible = daysPlayed >= 3; hoof2.visible = daysPlayed >= 7;
             if (!scratchMesh.visible || scratchSeen || !started || gameEnded || finalNight || sleepCine.active || scare.active) return;
@@ -5603,7 +5604,7 @@
         const guidePanel = $('guide-panel');
         let guideOpen = false, guideTab = 'mech', guideMat = 'where', guideEnc = 'items', guideStoryCat = 'all', guideQuery = '';
         const GUIDE_TABS = [['story', '📜 Historia'], ['mech', '⚙️ Mecánicas'], ['mats', '🧭 Materiales'], ['enc', '📚 Enciclopedia']];
-        const STORY_CATS = [['all', '📜 Todo'], ['diary', '📖 Diario de Elías'], ['c2', '🦌 Errante C2'], ['c3', '🩸 Fractura C3'], ['c4', '🟨 Backrooms C4'], ['notes', '🗒️ Notas y Relatos']];
+        const STORY_CATS = [['all', '📜 Todo'], ['diary', '📖 Diario de Elías'], ['c2', '🦌 Errante C2'], ['c3', '🩸 Fractura C3'], ['c4', '🟨 Backrooms C4'], ['c5', '🌲 Paz C5'], ['notes', '🗒️ Notas y Relatos']];
         const gdNorm = (t) => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         const gdDet = (ic, title, body, open, sub) => `<details class="gd"${open ? ' open' : ''}><summary><span class="gd-ic">${ic}</span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</summary><div class="gd-in">${body}</div></details>`;
         const gdChip = (k, n) => `<span class="chip${haveMat(k) >= n ? '' : ' no'}">${icon(k)} ${ITEMS[k][1]} ${haveMat(k) || 0}/${n}</span>`;
@@ -5663,7 +5664,7 @@
                 ['🎣', 'Pesca, agua y balde', `<p><b>Caña</b> (palos + fibra, en la mesa): apunta a un lago y clic dcho. para lanzar. Espera 4-12 s (menos con lluvia); cuando la boya se hunda tienes 1,2 s para volver a pulsar. Cada captura gasta 1 uso (${TOOL_USES.rod}). Botín: 70 % un pez, 18 % dos, 6 % fibra, 6 % un hueso viejo.</p>
                     <p><b>Balde</b> (tablas + fibra): llénalo apuntando al agua; vierte con clic dcho. para regar parcelas o apagar llamas colocadas.</p>
                     <p><b>Nadar:</b> el centro de los lagos es profundo; la orilla es somera. Espacio sube, Shift baja, y avanzar mirando arriba o abajo te hace bucear. Salta desde la superficie para salir a la orilla. La criatura no entra en el agua.</p>`],
-                ['📜', 'Historia y páginas', `<p>Hay <b>${CH1_PAGES} páginas</b> del diario de Elías. Cada una <b>solo aparece el día en que el diario revela su ubicación</b>: ${revs}. Hasta ese día no existe en el mundo; el objetivo te dice cuándo se revela la siguiente (duerme o espera al amanecer). Al ganar puedes elegir <b>Continuar · Capítulo 2</b> (5 fragmentos sobre Aldric Voss), el <b>Capítulo 3</b> (5 fragmentos de la fractura del Ciervo Hueco, cuyo final te arrastra fuera de la realidad) y el <b>Capítulo 4 · Los Backrooms</b> (Nivel 1 de exploración sin monstruo, sin crafteo ni hambre, con flechas luminosas hasta la puerta del Nivel 2, donde escapas del monstruo hacia la Puerta de Salida para volver al mundo principal).</p>
+                ['📜', 'Historia y páginas', `<p>Hay <b>${CH1_PAGES} páginas</b> del diario de Elías. Cada una <b>solo aparece el día en que el diario revela su ubicación</b>: ${revs}. Hasta ese día no existe en el mundo; el objetivo te dice cuándo se revela la siguiente (duerme o espera al amanecer). Al ganar puedes elegir <b>Continuar · Capítulo 2</b> (5 fragmentos sobre Aldric Voss), el <b>Capítulo 3</b> (5 fragmentos de la fractura del Ciervo Hueco, cuyo final te arrastra fuera de la realidad), el <b>Capítulo 4 · Los Backrooms</b> (Nivel 1 de exploración sin monstruo ni hambre, con solo 3 flechas por página hasta la puerta del Nivel 2, donde escapas del monstruo hacia la Puerta de Salida) y el <b>Capítulo 5 · Bosque en paz</b> (todo regresa a la normalidad, sin monstruos de día ni de noche, solo para explorar y construir).</p>
                     <p>Los primeros ${GUIDE_DAY - 1} días solo hay pistas del lugar. Desde el día ${GUIDE_DAY} el diario muestra el rumbo, la distancia y las coordenadas, y un haz rojo marca cada página. En los Backrooms las luces fluorescentes protegen tu cordura y las flechas del suelo marcan el camino.</p>
                     <p><b>Objetivo actual:</b> ${ui.objective._t || 'ninguno'}<br><small>El letrero del objetivo se oculta solo a los ${OBJ_SHOW_MS / 1000} s; la tecla O lo muestra otra vez.</small></p>`]
             ];
@@ -5918,6 +5919,13 @@
                 push('c4', '🔒', 'Capítulo 4 · Los Backrooms (Niveles 1 y 2)', 'bloqueado', `<p>Al llegar al Núcleo del Ciervo en el Capítulo 3 serás arrastrado fuera de la realidad hacia los Backrooms: explora el Nivel 1 siguiendo las flechas y huye del monstruo en el Nivel 2 hasta la Puerta Verde de regreso.</p>`, false);
             }
 
+            // Capítulo 5: Regreso a la normalidad (sin monstruo)
+            if (chapter >= 5) {
+                push('c5', '🌲', 'Capítulo 5 · Bosque en paz', 'todo volvió a la normalidad ✅', `<div class="gd-quote">${EPILOGUE4}</div><p>Ya no existe ningún monstruo ni de día ni de noche, desaparecieron las brechas y las ilusiones, y el bosque ha vuelto a la normalidad. Explora, caza, cultiva y construye libremente sin peligro.</p>`, true);
+            } else {
+                push('c5', '🔒', 'Capítulo 5 · Bosque en paz', 'bloqueado', `<p>Escapa del Nivel 2 de los Backrooms por la Puerta Verde para devolver el bosque a la normalidad: sin monstruos ni de noche ni de día, solo exploración y construcción.</p>`, false);
+            }
+
             // Notas y relatos encontrados
             if (scratchSeen) {
                 push('notes', '🩸', 'Marcas en la pared · Día 5', '«I GOT YOU»', `<div class="gd-quote">No son de oso ni de lobo: las uñas dejaron astillas claras en la madera, a la altura de tus ojos. «I GOT YOU». Durante cinco días jugó con las ilusiones. Mañana, cuando caiga la noche, dejará de jugar.</div>`, false);
@@ -5929,7 +5937,7 @@
                 if (TALES[tIdx]) push('notes', '📚', `Relato ${tIdx + 1}/${TALES.length} · ${TALES[tIdx][0]}`, 'biblioteca', `<div class="gd-quote">${TALES[tIdx][1]}</div>`, false);
             }
 
-            const chapTxt = chapter >= 4 ? ' · Capítulo 4 (Los Backrooms) activo' : (chapter >= 3 ? ' · Capítulo 3 activo' : (chapter >= 2 ? ' · Capítulo 2 activo' : ''));
+            const chapTxt = chapter >= 5 ? ' · Capítulo 5 (Bosque en paz) activo' : (chapter >= 4 ? ' · Capítulo 4 (Los Backrooms) activo' : (chapter >= 3 ? ' · Capítulo 3 activo' : (chapter >= 2 ? ' · Capítulo 2 activo' : '')));
             const stats = `<div class="gd-note">Páginas recogidas: <b>${Math.min(nextPage, TOTAL_PAGES)}/${TOTAL_PAGES}</b>${chapTxt} · Notas de cofres: <b>${collectedNotes.size}</b> · Relatos leídos: <b>${shelfRead.size}/${TALES.length}</b>.</div>`;
             return stats + (cards.length ? cards.join('') : '<div class="gd-note">No hay páginas ni notas que coincidan con tu filtro.</div>');
         }
@@ -6477,16 +6485,16 @@
 
             tryDispel();
             if (monster.body.visible && _lookDir.dot(_toMonster) > 0.6 && dist < 15) {
-                // Se acostumbra: cada flash seguido aturde menos (3.8 s, 2.9, 2.0, 1.2...). En el Cap. 3 se recupera antes.
-                monsterStunTimer = chapter >= 3
-                    ? Math.max(1.0, 3.0 - stunHits * 0.7)
+                // Se acostumbra: cada flash seguido aturde menos. En Cap. 3 es más accesible.
+                monsterStunTimer = chapter === 3
+                    ? Math.max(2.0, 4.2 - stunHits * 0.6)
                     : Math.max(1.2, 3.8 - stunHits * 0.9);
                 stunHits++;
                 monsterStunned = true;
                 playSound('monsterScream');
                 setText(ui.cam, '¡ATURDIDO!');
                 setColor(ui.cam, '#2ecc71');
-                glitchPulse = chapter >= 3 ? 1 : 0.8;
+                glitchPulse = chapter === 3 ? 1 : 0.8;
             }
         }
 
@@ -6500,7 +6508,7 @@
         const TOTAL_CYCLE = DAY_DURATION + NIGHT_DURATION;
         let isNight = false;
         const MONSTER_FREE_DAYS = 5;   // en los primeros 5 días el monstruo no sale de noche: solo hay ilusiones (la noche final siempre lo trae)
-        const monsterFreeNight = () => daysPlayed <= MONSTER_FREE_DAYS && !finalNight;
+        const monsterFreeNight = () => chapter >= 5 || (daysPlayed <= MONSTER_FREE_DAYS && !finalNight);
         var daysPlayed = 1;   // contador de días jugados: sube en cada amanecer (durmiendo o esperando)
         let lightningTimer = 0;
 
@@ -6858,21 +6866,21 @@
                 ui.dayCount.classList.remove('hud-corrupt');
             }
             document.body.classList.toggle('ch3-dark', chapter === 3 && started && !gameEnded && !inBackrooms());
-            const inBrClear = chapter >= 4 && started && !gameEnded && inBackrooms();
+            const inBrClear = chapter === 4 && started && !gameEnded && inBackrooms();
             document.body.classList.toggle('ch4-backrooms', inBrClear);
             document.body.classList.toggle('ch4-level2', inBrClear && activeBrOrigin().level === 2);
         }
         function updateChapter3FX(delta) {
-            if (chapter < 3 || !started || gameEnded || scare.active || sleepCine.active) {
+            if ((chapter !== 3 && !(chapter === 4 && !backroomsEscaped)) || !started || gameEnded || scare.active || sleepCine.active) {
                 clearCh3FX();
                 return;
             }
             const inBr = inBackrooms();
-            document.body.classList.toggle('ch3-dark', !inBr);
+            document.body.classList.toggle('ch3-dark', chapter === 3 && !inBr);
             document.body.classList.toggle('ch4-backrooms', inBr);
             document.body.classList.toggle('ch4-level2', inBr && activeBrOrigin().level === 2);
 
-            // Brechas de realidad diurnas: en Cap. 3 el monstruo sabe quién eres y puede cruzar incluso de día
+            // Brechas de realidad diurnas: en Cap. 3 el monstruo sabe quién eres y puede cruzar incluso de día (más espaciadas y cortas)
             if (inBr) {
                 ch3DayHunt = 0;
             } else if (!isNight && !finalNight && !inTent) {
@@ -6891,9 +6899,9 @@
                 } else {
                     ch3BreachCD -= delta;
                     if (ch3BreachCD <= 0) {
-                        ch3BreachCD = 34 + Math.random() * 20;
-                        if (!checkSafeZone() && !nearFire(player.position.x, player.position.z, 10)) {
-                            ch3DayHunt = 13 + Math.random() * 4;
+                        ch3BreachCD = 55 + Math.random() * 25;
+                        if (!checkSafeZone() && !nearFire(player.position.x, player.position.z, 12)) {
+                            ch3DayHunt = 8 + Math.random() * 3;
                             ch3BurstT = 1.4;
                             ch3SkyFlicker = 0.28;
                             glitchPulse = 1;
@@ -7116,11 +7124,11 @@
             for (let i = 0; i < backroomLights.length; i++) backroomLights[i].intensity = 0;
             if (backroomGain && audioCtx) backroomGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.35);
 
-            // Tinte de la luna en Capítulo 3
+            // Tinte de la luna en Capítulo 3 (normal en Cap. 5)
             if (ch3LastMoonCh !== chapter) {
                 ch3LastMoonCh = chapter;
-                moonSphere.material.color.setHex(chapter >= 3 ? 0xff4c5e : 0xe2eaff);
-                moonGlow.material.color.setHex(chapter >= 3 ? 0xa60d20 : 0x829de8);
+                moonSphere.material.color.setHex(chapter === 3 ? 0xff4c5e : 0xe2eaff);
+                moonGlow.material.color.setHex(chapter === 3 ? 0xa60d20 : 0x829de8);
             }
 
             // Fuego de la chimenea
@@ -7135,7 +7143,7 @@
                 animateSmoke();
             }
 
-            const ch3 = chapter >= 3;
+            const ch3 = chapter === 3;
             const breachActive = ch3 && ch3DayHunt > 0 && !isNight;
 
             if (!isNight) {
@@ -7149,7 +7157,7 @@
                     setColor(ui.time, ch3 ? '#c86a70' : '#f1c40f');
                 }
 
-                // Amanecer rápido y atardecer anaranjado (en Cap. 3 el bosque permanece oscuro y enfermo)
+                // Amanecer rápido y atardecer anaranjado (en Cap. 3 oscurece el bosque; en Cap. 5 vuelve a la normalidad)
                 const sunFactor = Math.min(1, Math.sin(dayProgress * Math.PI) * 1.8);
                 const dSky = ch3 ? ch3DaySkyColor : daySkyColor;
                 const nSky = ch3 ? ch3NightSkyColor : nightSkyColor;
@@ -7160,15 +7168,15 @@
                 scene.background.copy(_sky);
                 scene.fog.color.copy(_sky);
                 scene.fog.density = ch3
-                    ? (breachActive ? 0.078 * FOG_SCALE : THREE.MathUtils.lerp(0.088, 0.048 * FOG_SCALE, sunFactor))
+                    ? (breachActive ? 0.064 * FOG_SCALE : THREE.MathUtils.lerp(0.072, 0.036 * FOG_SCALE, sunFactor))
                     : THREE.MathUtils.lerp(0.07, 0.026 * FOG_SCALE, sunFactor);
 
                 sunLight.shadow.autoUpdate = true;
                 moonLight.shadow.autoUpdate = false;
-                sunLight.intensity = sunFactor * (ch3 ? (breachActive ? 0.16 : 0.44) : 1.2);
+                sunLight.intensity = sunFactor * (ch3 ? (breachActive ? 0.24 : 0.62) : 1.2);
                 moonLight.intensity = 0;
-                ambientLight.intensity = ch3 ? THREE.MathUtils.lerp(0.11, breachActive ? 0.16 : 0.28, sunFactor) : THREE.MathUtils.lerp(0.2, 0.72, sunFactor);
-                hemisphereLight.intensity = ch3 ? THREE.MathUtils.lerp(0.08, breachActive ? 0.11 : 0.2, sunFactor) : THREE.MathUtils.lerp(0.12, 0.42, sunFactor);
+                ambientLight.intensity = ch3 ? THREE.MathUtils.lerp(0.18, breachActive ? 0.22 : 0.38, sunFactor) : THREE.MathUtils.lerp(0.2, 0.72, sunFactor);
+                hemisphereLight.intensity = ch3 ? THREE.MathUtils.lerp(0.12, breachActive ? 0.16 : 0.26, sunFactor) : THREE.MathUtils.lerp(0.12, 0.42, sunFactor);
                 moonGroup.visible = breachActive;
                 stars.visible = breachActive;
 
@@ -7199,30 +7207,37 @@
             } else {
                 const nightProgress = (dayTime - DAY_DURATION) / NIGHT_DURATION;
                 const hours = Math.floor((18 + nightProgress * 12) % 24);
-                setText(ui.time, `NOCHE (${String(hours).padStart(2, '0')}:00) ${WX[weather].icon} - ${ch3 ? '¡CAZA TOTAL!' : '¡PELIGRO!'}`);
-                setColor(ui.time, '#e84118');
+                if (chapter >= 5) {
+                    setText(ui.time, `NOCHE (${String(hours).padStart(2, '0')}:00) ${WX[weather].icon} - EN PAZ`);
+                    setColor(ui.time, '#7ed6df');
+                } else {
+                    setText(ui.time, `NOCHE (${String(hours).padStart(2, '0')}:00) ${WX[weather].icon} - ${ch3 ? '¡CAZA TOTAL!' : '¡PELIGRO!'}`);
+                    setColor(ui.time, '#e84118');
+                }
 
                 const nSky = ch3 ? (finalNight ? ch3BreachColor : ch3NightSkyColor) : nightSkyColor;
                 scene.background.copy(nSky);
                 scene.fog.color.copy(nSky);
-                scene.fog.density = (ch3 ? 0.074 : 0.05) * FOG_SCALE;
+                scene.fog.density = (ch3 ? 0.056 : 0.05) * FOG_SCALE;
 
                 sunLight.shadow.autoUpdate = false;
                 moonLight.shadow.autoUpdate = true;
                 sunLight.intensity = 0;
-                moonLight.intensity = ch3 ? 0.54 : 0.92;
-                ambientLight.intensity = ch3 ? 0.14 : 0.3;
-                hemisphereLight.intensity = ch3 ? 0.16 : 0.32;
+                moonLight.intensity = ch3 ? 0.72 : 0.92;
+                ambientLight.intensity = ch3 ? 0.22 : 0.3;
+                hemisphereLight.intensity = ch3 ? 0.24 : 0.32;
                 moonGroup.visible = true;
                 stars.visible = true;
 
-                if (!monster.body.visible && !monsterFreeNight() && !inTent) {
+                if (chapter >= 5) {
+                    if (monster.body.visible) { monster.body.visible = false; monster.aura.intensity = 0; }
+                } else if (!monster.body.visible && !monsterFreeNight() && !inTent) {
                     monster.body.visible = true;
-                    monster.aura.intensity = ch3 ? 2.6 : 2;
+                    monster.aura.intensity = ch3 ? 2.4 : 2;
                     // Aparece entre los árboles, lejos del jugador
                     let a = Math.random() * Math.PI * 2;
                     let sx = 0, sz = 0;
-                    const R = finalChase ? 13 : (ch3 ? 21 : 26);
+                    const R = finalChase ? 13 : (ch3 ? 24 : 26);
                     if (finalChase) a = Math.atan2(player.position.z - BEACON_Z, player.position.x - BEACON_X);   // a tu espalda, del lado contrario a la cabaña
                     for (let tries = 0; tries < 20; tries++) {
                         sx = player.position.x + Math.cos(a) * R;
@@ -7231,13 +7246,13 @@
                         a += 0.45;
                     }
                     monster.position.set(sx, 0.5, sz);
-                    monsterState = (finalNight || ch3) ? 'chase' : 'stalk';
-                    monsterStateTimer = ch3 ? 3.5 : 6;
+                    monsterState = finalNight ? 'chase' : 'stalk';
+                    monsterStateTimer = ch3 ? 5 : 6;
                     monsterAtDoor = false;
                     monsterStunned = false;
                     resetMonsterAI();
                     if (finalChase) {   // ruge un instante antes de lanzarse: es tu ventaja para salir corriendo
-                        monsterState = 'roar'; roarT = ch3 ? 1.1 : 1.5;
+                        monsterState = 'roar'; roarT = ch3 ? 1.4 : 1.5;
                         monster.rotation.y = Math.atan2(player.position.x - sx, player.position.z - sz);
                         playSound('growl', 1.3); glitchPulse = 1;
                     }
@@ -7245,7 +7260,7 @@
 
                 // Relámpagos (probabilidad por segundo, no por frame): con lluvia caen rayos fuertes; sin ella, destellos lejanos
                 const stormy = wxRain > 0.5 || ch3;
-                if (lightningTimer <= 0 && Math.random() < delta * (stormy ? (ch3 ? 0.24 : 0.14) : 0.3)) {
+                if (lightningTimer <= 0 && Math.random() < delta * (stormy ? (ch3 ? 0.16 : 0.14) : 0.3)) {
                     if (stormy) strike(1.5 + Math.random() * 0.6, true); else strike(1, false);
                 }
             }
@@ -7417,7 +7432,7 @@
 
         const holdingVerity = () => selected === 'verity' && inventory.verity > 0;   // con ella en la mano no pierdes hambre
         const hackEl = $('hack-chat'), hackLog = $('hack-log'), hackInput = $('hack-input');
-        let hackTimers = [], ch2Skipping = false, ch3Skipping = false, ch4Skipping = false;
+        let hackTimers = [], ch2Skipping = false, ch3Skipping = false, ch4Skipping = false, ch5Skipping = false;
         const hackPrint = (text, cls) => { const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = text; hackLog.appendChild(d); hackLog.scrollTop = hackLog.scrollHeight; };
         const hackLater = (ms, fn) => { hackTimers.push(setTimeout(fn, ms)); };
         function openHack() {
@@ -7438,6 +7453,7 @@
             if (ch2Skipping) { ch2Skipping = false; beginChapter2(true); }   // lo mismo con el salto al capítulo 2
             if (ch3Skipping) { ch3Skipping = false; beginChapter3(true); }   // y al capítulo 3
             if (ch4Skipping) { ch4Skipping = false; beginChapter4(true); }   // y al capítulo 4 (Backrooms)
+            if (ch5Skipping) { ch5Skipping = false; beginChapter5(true); }   // y al capítulo 5 (Paz en el bosque)
             if (gameEnded) return;
             if (IS_MOBILE) paused = false;
             else { paused = true; setDisplay(ui.pause, 'flex'); tryLock(); }   // si el navegador no deja recapturar el ratón, un clic vuelve a la partida
@@ -7467,7 +7483,7 @@
                 hackLater(3800, () => closeHack());
             } else if (c === '/ch@pter-3s' || c === '/chapter-3s' || c === '/chapter3' || c === '/cap3' || c === '/ch3') {
                 if (chapter === 3) { hackPrint('> el capítulo 3 ya está en curso', 'ok'); hackLater(900, closeHack); return; }
-                if (chapter >= 4) { hackPrint('> ya estás en los Backrooms (Capítulo 4)', 'ok'); hackLater(900, closeHack); return; }
+                if (chapter >= 4) { hackPrint('> ya superaste el capítulo 3', 'ok'); hackLater(900, closeHack); return; }
                 if (ch3Skipping) return;
                 ch3Skipping = true;
                 hackLater(300, () => hackPrint('> verificando clave...'));
@@ -7476,7 +7492,8 @@
                 hackLater(2700, () => { beginChapter3(true); ch3Skipping = false; hackPrint('> CAPÍTULO 3 · EL DESPERTAR DEL CIERVO', 'ok'); });
                 hackLater(3800, () => closeHack());
             } else if (c === '/ch@pter-4s' || c === '/chapter-4s' || c === '/chapter4' || c === '/cap4' || c === '/ch4' || c === '/backrooms') {
-                if (chapter >= 4) { hackPrint('> los Backrooms (Capítulo 4) ya están en curso', 'ok'); hackLater(900, closeHack); return; }
+                if (chapter === 4) { hackPrint('> los Backrooms (Capítulo 4) ya están en curso', 'ok'); hackLater(900, closeHack); return; }
+                if (chapter >= 5) { hackPrint('> ya superaste los Backrooms (Capítulo 5 activo)', 'ok'); hackLater(900, closeHack); return; }
                 if (ch4Skipping) return;
                 ch4Skipping = true;
                 hackLater(300, () => hackPrint('> verificando clave...'));
@@ -7484,8 +7501,17 @@
                 hackLater(1800, () => hackPrint('> cargando Nivel 0 · Los Backrooms ▓▓▓▓▓▓'));
                 hackLater(2700, () => { beginChapter4(true); ch4Skipping = false; hackPrint('> CAPÍTULO 4 · LOS BACKROOMS', 'ok'); });
                 hackLater(3800, () => closeHack());
+            } else if (c === '/ch@pter-5s' || c === '/chapter-5s' || c === '/chapter5' || c === '/cap5' || c === '/ch5' || c === '/paz') {
+                if (chapter >= 5) { hackPrint('> el capítulo 5 (Bosque en paz) ya está activo', 'ok'); hackLater(900, closeHack); return; }
+                if (ch5Skipping) return;
+                ch5Skipping = true;
+                hackLater(300, () => hackPrint('> verificando clave...'));
+                hackLater(1100, () => hackPrint('> acceso concedido ✔ · EXPULSANDO AL MONSTRUO'));
+                hackLater(1800, () => hackPrint('> restaurando el bosque a la normalidad ▓▓▓▓▓▓'));
+                hackLater(2700, () => { beginChapter5(true); ch5Skipping = false; hackPrint('> CAPÍTULO 5 · BOSQUE EN PAZ', 'ok'); });
+                hackLater(3800, () => closeHack());
             } else if (c === '/salir' || c === '/exit') closeHack();
-            else if (c === '/help' || c === '/ayuda') hackPrint('> comandos: /verityomg · /ch@pter-2s · /ch@pter-3s · /ch@pter-4s · /salir');
+            else if (c === '/help' || c === '/ayuda') hackPrint('> comandos: /verityomg · /ch@pter-2s · /ch@pter-3s · /ch@pter-4s · /ch@pter-5s · /salir');
             else hackPrint('> comando desconocido');
         }
         hackInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runHack(hackInput.value); hackInput.value = ''; } });
@@ -7566,7 +7592,7 @@
                 txt = '🩸 ¡EL NÚCLEO SE CIERRA! · ¡NO HAY ESCAPE!';
             } else if (finalNight) {
                 txt = finalChase ? `🏃 ¡CORRE A LA CABAÑA! · ${arrowTo(BEACON_X, BEACON_Z)} · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s`
-                                 : (chapter >= 3 ? `🩸 ¡EL CIERVO HUECO VIENE A ELIMINARTE! RESISTE · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s`
+                                 : (chapter === 3 ? `🩸 ¡EL CIERVO HUECO VIENE A ELIMINARTE! RESISTE · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s`
                                                  : (chapter === 2 ? `🌑 RESISTE HASTA EL AMANECER Y DI SU NOMBRE: ALDRIC VOSS · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s` : `🌑 SOBREVIVE HASTA EL AMANECER · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s`));
             } else if (inTent) {
                 txt = isNight ? (dayTime < SLEEP_FROM_T ? `⛺ ESTÁS A SALVO · PODRÁS DORMIR DESDE LAS ${SLEEP_FROM_HOUR}:00` : '⛺ ESTÁS A SALVO · DUERME EN EL SACO (E) HASTA EL AMANECER') : '⛺ CASA DE ACAMPAR · COLOCA COSAS A TU GUSTO · SAL POR LA PUERTA DE LONA (E)';
@@ -7574,6 +7600,8 @@
                 txt = `🚨 NIVEL 2 · ¡ESCAPA DEL MONSTRUO HASTA LA PUERTA DE SALIDA! · ${arrowTo(BR2_DOOR_X, BR2_DOOR_Z)}`;
             } else if (inBackrooms() && nextPage >= CH1_PAGES + CH2_PAGES + CH3_PAGES + 4) {
                 txt = `🚪 PUERTA AL NIVEL 2 (SECTOR CARMESÍ) · SIGUE LAS FLECHAS · ${arrowTo(BR1_DOOR_X, BR1_DOOR_Z)}`;
+            } else if (chapter >= 5) {
+                txt = '🌲 CAPÍTULO 5 · BOSQUE EN PAZ · SIN MONSTRUOS · EXPLORA Y CONSTRUYE LIBREMENTE';
             } else if (nextPage < TOTAL_PAGES) {
                 const s = STORY_SITES[nextPage];
                 const icon = inBackrooms() ? '🟨' : '📜';
@@ -7583,7 +7611,7 @@
             }
             setText(ui.objective, txt);
             // El letrero del objetivo solo se ve 10 s cada vez que cambia (más pantalla libre); tecla O para verlo otra vez
-            const okey = ch3Trap.active ? 'trap' : (finalNight ? (finalChase ? 'chase' : 'final') : `${nextPage}|${pageAvailable()}|${storyGuideOn()}|${inBackrooms() ? activeBrOrigin().level : 0}`), now = performance.now();
+            const okey = ch3Trap.active ? 'trap' : (finalNight ? (finalChase ? 'chase' : 'final') : `${chapter}|${nextPage}|${pageAvailable()}|${storyGuideOn()}|${inBackrooms() ? activeBrOrigin().level : 0}`), now = performance.now();
             if (!started) objKey = '';
             else if (okey !== objKey) { objKey = okey; objUntil = now + OBJ_SHOW_MS; }
             setDisplay(ui.objective, (txt && now < objUntil) ? 'flex' : 'none');
@@ -7595,7 +7623,7 @@
             inventory.pages = nextPage;
             updateInventoryHUD();
             playSound('pagePickup');
-            glitchPulse = Math.max(glitchPulse, chapter >= 3 ? 0.75 : 0.35); setTimeout(() => playSound('whisper', chapter >= 3 ? 0.8 : 0.5), 700);   // el bosque reacciona
+            glitchPulse = Math.max(glitchPulse, chapter === 3 ? 0.75 : 0.35); setTimeout(() => playSound('whisper', chapter === 3 ? 0.8 : 0.5), 700);   // el bosque reacciona
             if (!(chapter === 4 && nextPage >= TOTAL_PAGES)) showNote(id);
             placePageObj();
             if (chapter === 4) {
@@ -7630,8 +7658,8 @@
                 }
             }
             glitchPulse = 1;
-            if (chapter >= 3) { ch3BurstT = 0; ch3TearT = 0.8; playSound('glitchTear', 1); }
-            toast(chapter >= 3 ? '¡EL CIERVO HUECO SABE QUIÉN ERES! · ¡CORRE A LA CABAÑA!' : (chapter === 2 ? 'ALDRIC VOSS VIENE A POR TI · ¡CORRE A LA CABAÑA!' : '¡EL VIENTO APAGA LAS LLAMAS! · ¡CORRE A LA CABAÑA!'));
+            if (chapter === 3) { ch3BurstT = 0; ch3TearT = 0.8; playSound('glitchTear', 1); }
+            toast(chapter === 3 ? '¡EL CIERVO HUECO SABE QUIÉN ERES! · ¡CORRE A LA CABAÑA!' : (chapter === 2 ? 'ALDRIC VOSS VIENE A POR TI · ¡CORRE A LA CABAÑA!' : '¡EL VIENTO APAGA LAS LLAMAS! · ¡CORRE A LA CABAÑA!'));
         }
         // Final del Capítulo 3: al recoger la última página del Núcleo, el Ciervo Hueco cierra la trampa, te mata y caes a los Backrooms
         function startCh3FinalTrap() {
@@ -7722,9 +7750,9 @@
             if (nextPage < CH1_PAGES + CH2_PAGES) nextPage = CH1_PAGES + CH2_PAGES;
             inventory.pages = nextPage;
             const d = daysPlayed;
-            [d, d, d + 1, d + 1, d + 2].forEach((v, k) => { PAGE_REVEAL_DAYS[CH1_PAGES + CH2_PAGES + k] = v; });
+            [d, d, d, d + 1, d + 1].forEach((v, k) => { PAGE_REVEAL_DAYS[CH1_PAGES + CH2_PAGES + k] = v; });
             finalNight = false; finalChase = false;
-            ch3DayHunt = 0; ch3BreachCD = 22; ch3BurstT = 0; ch3TearT = 0.7; ch3SkyFlicker = 0.5;
+            ch3DayHunt = 0; ch3BreachCD = 45; ch3BurstT = 0; ch3TearT = 0.7; ch3SkyFlicker = 0.5;
             objKey = '';
             placePageObj();
             updateInventoryHUD();
@@ -7842,36 +7870,48 @@
                 msg: 'CORRE POR LAS FLECHAS HASTA LA PUERTA VERDE'
             });
         }
-        function exitBackroomsToMainWorld() {
+        function beginChapter5(skipped) {
+            const wasInBr = inBackrooms();
+            gameEnded = false;
+            chapter = 5;
             backroomsEscaped = true;
+            TOTAL_PAGES = CH1_PAGES + CH2_PAGES + CH3_PAGES + CH4_PAGES;
+            if (nextPage < TOTAL_PAGES) nextPage = TOTAL_PAGES;
+            for (let k = 0; k < TOTAL_PAGES; k++) PAGE_REVEAL_DAYS[k] = PAGE_REVEAL_DAYS[k] || daysPlayed;
+            inventory.pages = nextPage;
             brGraceT = 0;
-            ch3DayHunt = 0; ch3Trap.active = false;
+            ch3GlitchT = 0; ch3BurstT = 0; ch3TearT = 0; ch3CorruptT = 0; ch3DayHunt = 0; ch3SkyFlicker = 0; ch3Trap.active = false;
             finalNight = false; finalChase = false;
+            pendingGuide = false; pendingOmen = 0; pendingReveal = 0;
             brDoor2.open = true;
             clearBackroomArrows();
             resetMonsterAI(); clearTraces(); endIllusion();
             monster.body.visible = false; monster.aura.intensity = 0; monster.position.copy(MONSTER_START);
+            VG.state = 'none'; VG.done = true; vigia.visible = false;
             if (backroomGain && audioCtx) backroomGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.25);
             for (let i = 0; i < backroomLights.length; i++) backroomLights[i].intensity = 0;
 
-            dayTime = 18;
-            isNight = false;
-            weather = 'sunny'; wxCloud = wxRain = wxFog = 0;
-            player.sanity = 100; player.hunger = 100;
-            hungerWarned = starveWarned = false;
-            player.position.set(0, 2.6, 5.5);
-            player.velocity.set(0, 0, 0);
-            player.onGround = false;
-            yaw = Math.PI; pitch = 0; lastYaw = yaw; lastPitch = 0;
-
-            clearAllChunks();
-            streamChunks(0, 5.5, 1e9);
+            if (wasInBr || skipped) {
+                if (inTent) { inTent = false; tentFrom = null; tentFx.state = 'idle'; tentFadeEl.style.opacity = 0; tentLight.intensity = 0; }
+                dayTime = 18;
+                isNight = false;
+                weather = 'sunny'; wxCloud = wxRain = wxFog = 0;
+                player.sanity = 100; player.hunger = 100;
+                hungerWarned = starveWarned = false;
+                player.position.set(0, 2.6, 5.5);
+                player.velocity.set(0, 0, 0);
+                player.onGround = false;
+                yaw = Math.PI; pitch = 0; lastYaw = yaw; lastPitch = 0;
+                clearAllChunks();
+                streamChunks(0, 5.5, 1e9);
+            }
             objKey = '';
             updateInventoryHUD();
             placePageObj();
             updateDayNightCycle(0);
             clearCh3FX();
             updateBrDoors(0);
+            updateStoryProps();
             updateObjective();
             playSound('discover');
 
@@ -7879,18 +7919,21 @@
             startWakeUp({
                 pose: 'blink',
                 dur: 3.0,
-                big: 'MUNDO PRINCIPAL',
-                small: 'Regresaste sano y salvo al bosque...',
-                msg: '¡ESCAPASTE DE LOS BACKROOMS Y VOLVISTE AL BOSQUE!'
+                big: 'CAPÍTULO 5 · BOSQUE EN PAZ',
+                small: skipped ? 'Salto al capítulo final de exploración...' : 'Todo regresó a la normalidad...',
+                msg: 'CAPÍTULO 5 · SIN MONSTRUO · EXPLORA Y CONSTRUYE LIBREMENTE'
             });
             setTimeout(() => {
                 if (!started || gameEnded) return;
-                setText(ui.noteTitle, '¡ESCAPASTE DE LOS BACKROOMS!');
-                setText(ui.noteText, EPILOGUE4);
+                setText(ui.noteTitle, 'CAPÍTULO 5 · TODO REGRESÓ A LA NORMALIDAD');
+                setText(ui.noteText, (skipped ? 'Saltaste al Capítulo 5. ' : EPILOGUE4 + ' ') + 'El bosque volvió a la normalidad para siempre: ya no hay monstruo ni de día ni de noche, ni brechas ni ilusiones. Dedícate a explorar, cazar, cultivar y construir a tu ritmo.');
                 setDisplay(ui.note, 'block');
-                noteTimer = 24;
+                noteTimer = 26;
                 playSound('pagePickup');
             }, 3100);
+        }
+        function exitBackroomsToMainWorld() {
+            beginChapter5(false);
         }
         function startChapter4() {
             gameEnded = false; wasLocked = false;
@@ -8021,7 +8064,7 @@
             if (r.twitchT <= 0) { r.twitchT = 1.1 + Math.random() * 2.6; r.twitch = (Math.random() < 0.5 ? -1 : 1) * (0.32 + Math.random() * 0.48); }
             r.twitch = (r.twitch || 0) * Math.exp(-delta * 8);
             if (mode !== 'stun' && mode !== 'roar') { r.head.rotation.y += r.twitch; r.head.rotation.z += r.twitch * 0.55; }
-            if (chapter >= 3 && m === monster && (ch3TearT > 0 || Math.random() < 0.08)) {
+            if (chapter === 3 && m === monster && (ch3TearT > 0 || Math.random() < 0.08)) {
                 r.head.rotation.y += (Math.random() - 0.5) * 0.48;
                 r.head.rotation.z += (Math.random() - 0.5) * 0.55;
                 r.neck.rotation.x += (Math.random() - 0.5) * 0.28;
@@ -8340,8 +8383,8 @@
                         camera.getWorldDirection(_lookDir);
                         const vx = w.x + w.nx * 0.35 - px, vy = 2.0 - player.position.y, vz = w.z + w.nz * 0.35 - pz, d = Math.hypot(vx, vy, vz) || 1;
                         const contact = d < 9 && (_lookDir.x * vx + _lookDir.y * vy + _lookDir.z * vz) / d > 0.985;
-                        const gLim = chapter >= 3 ? 2.1 : GAZE_LIMIT;
-                        siege.gaze = contact ? siege.gaze + delta : Math.max(0, siege.gaze - delta * (chapter >= 3 ? 0.9 : 1.5));
+                        const gLim = chapter === 3 ? 3.2 : GAZE_LIMIT;
+                        siege.gaze = contact ? siege.gaze + delta : Math.max(0, siege.gaze - delta * (chapter === 3 ? 1.3 : 1.5));
                         const g = Math.min(1, siege.gaze / gLim);
                         monster.rig.eyeBoost = g;
                         if (g > 0) glitchPulse = Math.max(glitchPulse, g * 0.55);
@@ -8654,7 +8697,7 @@
         function groundShade(x, z) {   // sombra a la altura del pecho de la criatura (con caché de medio segundo)
             const key = Math.round(x * 2) * 65537 + Math.round(z * 2);
             let v = shadeCache.get(key);
-            if (v === undefined) { v = sunLight.intensity < (chapter >= 3 ? 0.14 : 0.3) || shadedAt(x, z, 1.3); shadeCache.set(key, v); }
+            if (v === undefined) { v = sunLight.intensity < (chapter === 3 ? 0.14 : 0.3) || shadedAt(x, z, 1.3); shadeCache.set(key, v); }
             return v;
         }
         function vigiaFade(burn) {   // se hunde en el suelo y desaparece; ya no vuelve hoy
@@ -8710,7 +8753,7 @@
             vigia.visible = false; shadeCache.clear();
         }
         function updateVigia(delta) {
-            if (inBackrooms()) { vigia.visible = false; return; }
+            if (chapter >= 5 || inBackrooms()) { vigia.visible = false; return; }
             shadeCacheT -= delta; if (shadeCacheT <= 0) { shadeCache.clear(); shadeCacheT = 0.5; }
             if (vgVoiceT > 0) { vgVoiceT -= delta; if (vgVoiceT <= 0) vgVoiceEl.style.opacity = 0; }
             if (VG.state === 'caught') return;
@@ -8733,7 +8776,7 @@
             VG.shT -= delta;   // ¿estás en sombra? 5 veces por segundo y con dos lecturas seguidas iguales (sin parpadeos)
             if (VG.shT <= 0) {
                 VG.shT = 0.2;
-                const raw = sunLight.intensity < (chapter >= 3 ? 0.14 : 0.3) || inTent || shadedAt(px, pz, player.position.y - 0.7);
+                const raw = sunLight.intensity < (chapter === 3 ? 0.14 : 0.3) || inTent || shadedAt(px, pz, player.position.y - 0.7);
                 if (raw === VG.pRaw) VG.pN++; else { VG.pRaw = raw; VG.pN = 1; }
                 if (VG.pN >= 2) VG.pShade = raw;
             }
@@ -8791,9 +8834,9 @@
 
         function updateMonster(delta) {
             if (ch3Trap.active) return;
-            const ch3 = chapter >= 3;
+            const ch3 = chapter === 3;
             const inBr = inBackrooms();
-            if (inBr && activeBrOrigin().level !== 2) {
+            if ((!inBr && chapter >= 5) || (inBr && activeBrOrigin().level !== 2)) {
                 if (monster.body.visible) { monster.body.visible = false; monster.aura.intensity = 0; }
                 return;
             }
@@ -8817,10 +8860,10 @@
                 monster.aura.intensity = 0.4 + Math.random() * 0.3;
                 if (monsterStunTimer <= 0) {
                     monsterStunned = false;
-                    monsterState = ch3 ? 'chase' : 'retreat';
-                    monsterStateTimer = ch3 ? 99 : 3;
+                    monsterState = 'retreat';
+                    monsterStateTimer = ch3 ? 2.4 : 3;
                     coverTarget = null;
-                    if (ch3) { ch3TearT = 0.4; playSound('glitchTear', 0.8); }
+                    if (ch3) { ch3TearT = 0.3; playSound('glitchTear', 0.65); }
                 }
                 return;
             }
@@ -8829,11 +8872,11 @@
             const startChase = () => {
                 coverTarget = null;
                 if (distP > 9 && !playerInside && monsterState !== 'chase') {   // antes de lanzarse, se detiene y ruge (aviso para el jugador)
-                    monsterState = 'roar'; roarT = ch3 ? 0.55 : 0.9;
+                    monsterState = 'roar'; roarT = ch3 ? 0.85 : 0.9;
                     monster.rotation.y = Math.atan2(px - monster.position.x, pz - monster.position.z);
                     playSound('growl', 1.15);
                     playSound('distantBellow', THREE.MathUtils.clamp(1.15 - distP / 40, 0.25, 0.95));
-                    if (ch3) { ch3TearT = Math.max(ch3TearT, 0.35); playSound('glitchTear', 0.7); }
+                    if (ch3) { ch3TearT = Math.max(ch3TearT, 0.3); playSound('glitchTear', 0.6); }
                 } else {
                     monsterState = 'chase'; monsterStateTimer = 99;
                     playSound('growl', THREE.MathUtils.clamp(1.35 - distP / 30, 0.35, 1.1));
@@ -8842,40 +8885,40 @@
 
             // ¿Te ve (hay línea de visión entre troncos) y lo estás mirando? La visibilidad se refresca 4 veces por segundo.
             losT -= delta;
-            if (losT <= 0) { losT = 0.25; losCache = distP < (ch3 ? 52 : 42) && hasLOS(mx, mz, px, pz); }
-            const seen = distP < (ch3 ? 46 : 38) && losCache && playerLooksAt(mx, mz, 0.74);
+            if (losT <= 0) { losT = 0.25; losCache = distP < (ch3 ? 46 : 42) && hasLOS(mx, mz, px, pz); }
+            const seen = distP < (ch3 ? 40 : 38) && losCache && playerLooksAt(mx, mz, 0.74);
 
             // Presencia tenebrosa: ceniza roja y oscura desprendiéndose de su pecho hueco cuando acecha cerca
             erranteAshT -= delta;
             if (erranteAshT <= 0 && distP < 26) {
-                erranteAshT = monsterState === 'chase' ? (ch3 ? 0.09 : 0.14) : (ch3 ? 0.18 : 0.28);
+                erranteAshT = monsterState === 'chase' ? (ch3 ? 0.11 : 0.14) : (ch3 ? 0.2 : 0.28);
                 const ashCol = ch3 ? (Math.random() < 0.3 ? 0x1ae8ff : (Math.random() < 0.65 ? 0xff1638 : 0x160b0b)) : (Math.random() < 0.45 ? 0x9b0d06 : 0x160b0b);
                 spawnBurst(mx, 2.25, mz, ashCol, 1, 0.6, 0.9);
             }
 
-            // --- Emboscada: un susurro y un latido avisan; en Cap. 3 embosca con mucha más frecuencia (en Nivel 2 solo persigue desde atrás) ---
+            // --- Emboscada: un susurro y un latido avisan (equilibrada en Cap. 3; en Nivel 2 solo persigue desde atrás) ---
             if (!inBr) {
                 ambushCD -= delta;
                 if (ambushWarn > 0) {
                     ambushWarn -= delta;
                     if (ambushWarn <= 0) {
                         ambushCD = ch3
-                            ? (finalNight ? 10 + Math.random() * 6 : 13 + Math.random() * 7)
+                            ? (finalNight ? 16 + Math.random() * 8 : 22 + Math.random() * 10)
                             : (finalNight ? 18 + Math.random() * 8 : 26 + Math.random() * 14);
                         if (!checkSafeZone() && !nearFire(px, pz, 9) && tryAmbush(px, pz)) {
-                            monsterState = 'reveal'; revealTimer = ch3 ? 0.55 : 0.9; coverTarget = null;
+                            monsterState = 'reveal'; revealTimer = ch3 ? 0.85 : 0.9; coverTarget = null;
                             monster.rotation.y = Math.atan2(px - monster.position.x, pz - monster.position.z);
                             playSound('growl', 1.15); playSound('distantBellow', 0.9); glitchPulse = Math.max(glitchPulse, 0.85);
-                            if (ch3) { ch3TearT = 0.45; playSound('glitchTear', 0.9); }
+                            if (ch3) { ch3TearT = 0.35; playSound('glitchTear', 0.75); }
                             animateMonster(delta, 0, 'reveal');
                             return;
                         }
                     }
-                } else if (ambushCD <= 0 && (nightClock > (ch3 ? 6 : 14)) && distP > (ch3 ? 13 : 16) && !playerInside && monsterState !== 'retreat' && !nearFire(px, pz, 9)) {
-                    if (Math.random() < delta * (ch3 ? 0.85 : 0.5)) {
-                        ambushWarn = ch3 ? 1.0 : 1.5;
+                } else if (ambushCD <= 0 && (nightClock > (ch3 ? 12 : 14)) && distP > (ch3 ? 15 : 16) && !playerInside && monsterState !== 'retreat' && !nearFire(px, pz, 9)) {
+                    if (Math.random() < delta * (ch3 ? 0.38 : 0.5)) {
+                        ambushWarn = 1.5;
                         playSound('whisper', 1); playSound('heartbeat', 1);
-                        if (ch3) playSound('glitchTear', 0.6);
+                        if (ch3) playSound('glitchTear', 0.55);
                         glitchPulse = Math.max(glitchPulse, 0.65);
                     }
                 }
@@ -8889,14 +8932,14 @@
             }
             const S = monsterState;
             if (S === 'retreat') {
-                if (monsterStateTimer <= 0) { monsterState = ch3 ? 'chase' : 'stalk'; monsterStateTimer = ch3 ? 99 : 6 + Math.random() * 4; coverTarget = null; seenTimer = 0; }
+                if (monsterStateTimer <= 0) { monsterState = 'stalk'; monsterStateTimer = ch3 ? 5 + Math.random() * 3 : 6 + Math.random() * 4; coverTarget = null; seenTimer = 0; }
             } else if (S === 'stalk') {
                 if (playerInside ? (distP < 15 || monsterStateTimer <= 0)
-                                 : (distP < (ch3 ? 18 : 11) || (monsterStateTimer <= 0 && (!seen || ch3)) || monsterStateTimer < (ch3 ? -2 : -6))) {
+                                 : (distP < (ch3 ? 13 : 11) || (monsterStateTimer <= 0 && !seen) || monsterStateTimer < (ch3 ? -4 : -6))) {
                     startChase();
                 } else if (seen && !playerInside && distP > 11) {
                     seenTimer += delta;
-                    if (ch3 && seenTimer > 0.75) {   // en Cap. 3 mirarlo lo enfurece al instante
+                    if (ch3 && seenTimer > 1.8) {   // en Cap. 3 mirarlo mucho rato lo enfurece
                         startChase();
                     } else if (!ch3 && seenTimer > 2.0 && coverCD <= 0) {   // lo han visto: se esconde tras el árbol más cercano
                         coverCD = 2.5;
@@ -8905,14 +8948,14 @@
                     }
                 } else seenTimer = Math.max(0, seenTimer - delta * 2);
             } else if (S === 'hide') {
-                if (distP < 9 || ch3) startChase();
+                if (distP < 9) startChase();
                 else if (!coverTarget || Math.hypot(coverTarget.x - mx, coverTarget.z - mz) < 0.8 || monsterStateTimer <= 0) {
                     monsterState = 'peek'; peekTimer = 1.6 + Math.random() * 1.8; seenTimer = 0;
                     monster.peekSide = Math.random() < 0.5 ? -1 : 1;
                 }
             } else if (S === 'peek') {
                 peekTimer -= delta;
-                if (distP < 10 || ch3) startChase();
+                if (distP < 10) startChase();
                 else if (peekTimer <= 0) { monsterState = 'stalk'; monsterStateTimer = Math.max(monsterStateTimer, 0) + 5; coverTarget = null; coverCD = 3; }
             } else if (S === 'reveal') {
                 revealTimer -= delta;
@@ -8933,12 +8976,12 @@
 
             growlTimer -= delta;
             if (growlTimer <= 0) {
-                growlTimer = (ch3 ? 4.2 : 6.5) + Math.random() * 4.5;
+                growlTimer = (ch3 ? 5.2 : 6.5) + Math.random() * 4.5;
                 playSound('growl', THREE.MathUtils.clamp(1.25 - distP / 35, 0.18, 1.05));
             }
             bellowTimer -= delta;
             if (bellowTimer <= 0) {
-                bellowTimer = (ch3 ? 9 : 14) + Math.random() * 10;
+                bellowTimer = (ch3 ? 11 : 14) + Math.random() * 10;
                 if (distP > 12) playSound('distantBellow', THREE.MathUtils.clamp(1.0 - distP / 52, 0.22, 0.85));
                 else playSound('whisper', 0.85);
             }
@@ -8974,7 +9017,7 @@
             let speed = 0, frozen = false;
             switch (monsterState) {
                 case 'stalk':
-                    speed = ch3 ? 3.5 : 2.7;
+                    speed = ch3 ? 2.9 : 2.7;
                     if (!ch3 && seen && !playerInside && distP > 11) {   // en Cap. 3 mirarlo ya no lo detiene
                         frozen = seenTimer < 2.0;
                         speed = frozen ? 0 : speed * 0.45;
@@ -8985,20 +9028,20 @@
                     }
                     if (idleAct.t > 0) { idleAct.t -= delta; speed = 0; }
                     break;
-                case 'hide': speed = ch3 ? 4.6 : 3.9; break;
+                case 'hide': speed = ch3 ? 4.1 : 3.9; break;
                 case 'peek': case 'reveal': case 'roar': speed = 0; break;
-                case 'retreat': speed = ch3 ? 5.0 : 4.2; break;
+                case 'retreat': speed = ch3 ? 4.5 : 4.2; break;
                 default:
                     speed = inBr
                         ? 5.1
                         : (ch3
-                            ? (finalChase ? 6.2 + THREE.MathUtils.clamp((distP - 12) * 0.16, 0, 1.3) : (finalNight ? 5.95 : 5.65))
+                            ? (finalChase ? 5.35 + THREE.MathUtils.clamp((distP - 12) * 0.12, 0, 0.9) : (finalNight ? 5.2 : 4.95))
                             : (finalChase ? 5.7 + THREE.MathUtils.clamp((distP - 12) * 0.15, 0, 1.2) : (finalNight ? 5.5 : 5.0)));   // en la huida final no se rinde: acelera si te alejas
                     lungeTimer -= delta;
-                    if (lungeLeft > 0) { lungeLeft -= delta; speed = inBr ? 6.1 : (ch3 ? 8.0 : 7.2); }
-                    else if (lungeTimer <= 0 && distP < (inBr ? 10 : (ch3 ? 13 : 11)) && !playerInside) {
-                        lungeLeft = inBr ? 0.55 : (ch3 ? 1.05 : 0.9);
-                        lungeTimer = inBr ? 4.5 + Math.random() * 2.0 : ((ch3 ? 3.4 : 5) + Math.random() * 2.5);
+                    if (lungeLeft > 0) { lungeLeft -= delta; speed = inBr ? 6.1 : (ch3 ? 6.3 : 7.2); }
+                    else if (lungeTimer <= 0 && distP < (inBr ? 10 : (ch3 ? 11 : 11)) && !playerInside) {
+                        lungeLeft = inBr ? 0.55 : (ch3 ? 0.6 : 0.9);
+                        lungeTimer = inBr ? 4.5 + Math.random() * 2.0 : ((ch3 ? 5.5 : 5) + Math.random() * 2.5);
                     }
             }
 
@@ -9009,14 +9052,14 @@
                 const ox = mx - nf.f.x, oz = mz - nf.f.z, od = Math.hypot(ox, oz) || 1;
                 monster.position.x += ox / od * 3.2 * delta; monster.position.z += oz / od * 3.2 * delta;
             }
-            if (nearFire(mx, mz, 7)) speed *= (ch3 ? 0.62 : 0.4);
+            if (nearFire(mx, mz, 7)) speed *= (ch3 ? 0.42 : 0.4);
 
-            // La linterna molesta a la criatura: si la apuntas, se ralentiza (menos en Cap. 3)
+            // La linterna molesta a la criatura: si la apuntas, se ralentiza
             let lit = false;
             if (flashlightOn && distP < 12) {
                 camera.getWorldDirection(_lookDir);
                 _toM.set(mx - px, 0, mz - pz).normalize();
-                if (_lookDir.x * _toM.x + _lookDir.z * _toM.z > 0.88) { speed *= (ch3 ? 0.82 : 0.6); lit = true; }
+                if (_lookDir.x * _toM.x + _lookDir.z * _toM.z > 0.88) { speed *= (ch3 ? 0.65 : 0.6); lit = true; }
             }
 
             let dx = tx - mx, dz = tz - mz;
@@ -11883,7 +11926,7 @@
             }
         }
         function updateIllusion(delta) {
-            if ((isNight && !monsterFreeNight()) || finalNight || gameEnded || inTent || inBackrooms() || (estabList.length > 0 && estabLevelAt(player.position.x, player.position.z) >= 4)) { if (ill.type) endIllusion(); return; }   // en las noches sin monstruo, las ilusiones siguen
+            if (chapter >= 5 || (isNight && !monsterFreeNight()) || finalNight || gameEnded || inTent || inBackrooms() || (estabList.length > 0 && estabLevelAt(player.position.x, player.position.z) >= 4)) { if (ill.type) endIllusion(); return; }   // en Cap. 5 y en las noches con monstruo no hay ilusiones
             const px = player.position.x, pz = player.position.z;
             if (!ill.type) {
                 ill.timer -= delta;
@@ -12532,7 +12575,7 @@
                     if (heldKey === 'torch' || heldKey === 'lantern' || heldKey === 'fire' || heldKey === 'bonfire') drain *= 0.6;
                     player.sanity = Math.max(0, player.sanity - delta * drain);
                 }
-            } else if (!isSafe && !atFire && isNight) {
+            } else if (!isSafe && !atFire && isNight && chapter < 5) {
                 // Con luz la oscuridad pesa menos: linterna encendida, llevar una llama en la mano o tener una antorcha/farol cerca
                 let drain = SANITY_DRAIN;
                 if (flashlightOn) drain *= 0.6;
@@ -12540,7 +12583,7 @@
                 if (nearFire(player.position.x, player.position.z, 14)) drain *= 0.7;
                 player.sanity = Math.max(0, player.sanity - delta * Math.max(drain, SANITY_DRAIN * 0.3));
             }
-            else player.sanity = Math.min(100, player.sanity + delta * ((isSafe || atFire) ? 10 : 4) * (player.hunger <= 0 ? 0 : (player.hunger < 20 ? 0.5 : 1)));   // con hambre la mente se recupera peor
+            else player.sanity = Math.min(100, player.sanity + delta * ((isSafe || atFire) ? 10 : (chapter >= 5 ? 6 : 4)) * (player.hunger <= 0 ? 0 : (player.hunger < 20 ? 0.5 : 1)));   // con hambre la mente se recupera peor
             const sw = `${Math.round(player.sanity)}%`;
             if (ui.sanity._w !== sw) { ui.sanity.style.width = sw; ui.sanity._w = sw; }
             const lowS = player.sanity < 35;
@@ -12572,7 +12615,7 @@
             glitchPulse = Math.max(0, glitchPulse - delta * 2.5);
             const sanityGlitch = (1 - player.sanity / 100) * 0.55;
             let erranteDread = 0;
-            if ((inBr || isNight || (chapter >= 3 && ch3DayHunt > 0)) && monster.body.visible && !inTent && (inBr || !isNight || !monsterFreeNight())) {
+            if ((inBr || isNight || (chapter === 3 && ch3DayHunt > 0)) && monster.body.visible && !inTent && (inBr || !isNight || !monsterFreeNight())) {
                 const dm = Math.hypot(monster.position.x - player.position.x, monster.position.z - player.position.z);
                 if (dm < 20) erranteDread = THREE.MathUtils.clamp((1 - dm / 20) * (monsterState === 'chase' ? 0.55 : 0.35), 0, 0.55);
             }
@@ -12877,7 +12920,7 @@
             nextPage = 0;
             chapter = 1; TOTAL_PAGES = CH1_PAGES; for (let k = CH1_PAGES; k < PAGE_REVEAL_DAYS.length; k++) PAGE_REVEAL_DAYS[k] = 0; btnContinue.style.display = 'none';
             ch3GlitchT = 0; ch3BurstT = 0; ch3TearT = 0; ch3CorruptT = 0; ch3BreachCD = 32; ch3DayHunt = 0; ch3SkyFlicker = 0;
-            ch3Trap.active = false; brGraceT = 0; ch4Skipping = false;
+            ch3Trap.active = false; brGraceT = 0; ch4Skipping = false; ch5Skipping = false;
             brLevel = 1; backroomsEscaped = false; brPathKey = '';
             brDoor1.open = false; brDoor1.angle = 0; brDoor1.pivot.rotation.y = 0;
             brDoor2.open = false; brDoor2.angle = 0; brDoor2.pivot.rotation.y = 0;
@@ -13130,9 +13173,9 @@
                 yaw = 0; pitch = 0; lastYaw = 0; lastPitch = 0;
                 streamChunks(R.x, R.z, 1e9);
             }
-            startWakeUp({ pose: mode === 'cabin' ? 'bed' : 'blink', big: `DÍA ${daysPlayed}`, dur: mode === 'cabin' ? 3.2 : 2.4,
-                small: mode === 'cabin' ? 'Despiertas en la cabaña...' : (mode === 'respawn' ? `Despiertas en ${respawn.name.toLowerCase()}...` : 'Vuelves al bosque...'),
-                msg: mode === 'saved' ? 'PARTIDA CARGADA' : `PARTIDA CARGADA · ${mode === 'cabin' ? 'EN LA CABAÑA' : respawn.name}` });
+            startWakeUp({ pose: mode === 'cabin' ? 'bed' : 'blink', big: chapter >= 5 ? `CAPÍTULO 5 · DÍA ${daysPlayed}` : `DÍA ${daysPlayed}`, dur: mode === 'cabin' ? 3.2 : 2.4,
+                small: chapter >= 5 ? 'Despiertas en el bosque en paz...' : (mode === 'cabin' ? 'Despiertas en la cabaña...' : (mode === 'respawn' ? `Despiertas en ${respawn.name.toLowerCase()}...` : 'Vuelves al bosque...')),
+                msg: chapter >= 5 ? 'CAPÍTULO 5 · BOSQUE EN PAZ · EXPLORA Y CONSTRUYE' : (mode === 'saved' ? 'PARTIDA CARGADA' : `PARTIDA CARGADA · ${mode === 'cabin' ? 'EN LA CABAÑA' : respawn.name}`) });
         }
         function loadSlot(i) {
             let sv = null; try { sv = JSON.parse(lsGet(slotKey(i)) || 'null'); } catch (e) { sv = null; }
