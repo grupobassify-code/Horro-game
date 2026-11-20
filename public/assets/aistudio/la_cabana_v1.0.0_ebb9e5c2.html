@@ -631,12 +631,21 @@
         #menu-fx::after { content: ''; position: absolute; inset: 0; opacity: .06; background-image: repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px); animation: mgrain 5s steps(5) infinite; }
         @keyframes mgrain { 0% { transform: translateY(0); } 100% { transform: translateY(-3px); } }
         @keyframes mflick { 0%, 91%, 100% { opacity: 1; } 92% { opacity: .55; } 93% { opacity: 1; } 95% { opacity: .7; } }
-        #menu-root { position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: center; gap: 30px; width: min(540px, 100%); height: 100%; padding: 5vh 3vw 3vh 5.5vw; transition: opacity .2s, filter .2s; }
+        #menu-root { position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: center; gap: 20px; width: min(540px, 100%); height: 100%; padding: 5vh 3vw 3vh 5.5vw; transition: opacity .2s, filter .2s; }
         #menu-root.dim { opacity: .35; filter: blur(1px); pointer-events: none; }
         #menu-brand { display: flex; flex-direction: column; gap: 6px; }
         #start-screen #menu-brand h1 { margin: 0; font-size: clamp(34px, 5.2vw, 66px); line-height: 1; letter-spacing: .04em; white-space: nowrap; color: #f4e9d2; text-shadow: 0 0 30px rgba(232,65,24,.55), 0 3px 0 #000; animation: mflick 8s infinite; }
         .mb-kicker { color: #e84118; letter-spacing: .38em; text-transform: uppercase; font-size: 12px; }
         .mb-tag { color: #b9ab92; font-size: 13px; line-height: 1.4; }
+        .menu-diff { display: flex; flex-direction: column; gap: 6px; padding: 10px 14px; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.1); border-left: 3px solid #e84118; border-radius: 6px; }
+        .menu-diff label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #c9b99c; }
+        .menu-diff label em { font-style: normal; letter-spacing: .04em; text-transform: none; color: #f1c40f; font-size: 11px; }
+        .diff-select { width: 100%; padding: 9px 34px 9px 11px; font-family: inherit; font-size: 13.5px; font-weight: 600; color: #f4e9d2;
+            background: rgba(14,9,7,.92) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23f1c40f' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center;
+            border: 1px solid rgba(232,65,24,.45); border-radius: 5px; cursor: pointer; appearance: none; -webkit-appearance: none; transition: border-color .15s, background-color .15s; }
+        .diff-select:hover, .diff-select:focus-visible { border-color: #f1c40f; background-color: rgba(26,15,11,.96); outline: none; }
+        .diff-select option { background: #140c09; color: #f4e9d2; }
+        .opt-row .diff-select { font-size: 13px; padding: 8px 32px 8px 10px; }
         #menu-main { display: flex; flex-direction: column; gap: 8px; }
         #start-screen .mbtn { margin: 0; width: 100%; display: flex; align-items: center; gap: 12px; padding: 13px 16px; text-align: left; font-size: 15px; font-weight: 600; letter-spacing: .05em;
             color: #eadfc9; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.1); border-left: 3px solid transparent; border-radius: 6px; box-shadow: none; transition: background .15s, border-color .15s, transform .15s; }
@@ -691,8 +700,10 @@
             .opt-row { grid-template-columns: 1fr; gap: 6px; }
         }
         @media (max-height: 520px) and (orientation: landscape) {
-            #menu-root { gap: 10px; padding-top: 3vh; justify-content: flex-start; overflow-y: auto; }
+            #menu-root { gap: 8px; padding-top: 3vh; justify-content: flex-start; overflow-y: auto; }
             #start-screen #menu-brand h1 { font-size: clamp(30px, 8vh, 48px); }
+            .menu-diff { padding: 6px 10px; gap: 4px; }
+            .diff-select { padding: 6px 28px 6px 8px; font-size: 12px; }
             #start-screen .mbtn { padding: 8px 14px; font-size: 14px; }
             #menu-main { gap: 5px; }
             .mb-tag, #menu-foot { display: none; }
@@ -860,6 +871,14 @@
                 <h1>LA CABAÑA</h1>
                 <span class="mb-tag">Sobrevive a la noche · Descubre qué le pasó a Elías</span>
             </header>
+            <div class="menu-diff">
+                <label for="m-difficulty"><span>Dificultad del Errante</span><em id="m-diff-mult">Velocidad ×1.00</em></label>
+                <select id="m-difficulty" class="diff-select" aria-label="Seleccionar nivel de dificultad">
+                    <option value="easy">Fácil: para disfrutar la aventura</option>
+                    <option value="medium" selected>Medio: para asustarse un poco</option>
+                    <option value="hard">Difícil: para saltar del susto</option>
+                </select>
+            </div>
             <nav id="menu-main" aria-label="Menú principal">
                 <button class="mbtn primary" id="m-continue"><span class="mi">▶</span><span>Continuar</span><span class="msub" id="m-continue-sub"></span></button>
                 <button class="mbtn" id="m-new"><span class="mi">✦</span><span>Nueva partida</span></button>
@@ -7948,6 +7967,13 @@
         });
 
         const MONSTER_RADIUS = 0.36;
+        const DIFF_MODES = {
+            easy:   { mult: 0.78, label: 'Fácil: para disfrutar la aventura', multTxt: 'Velocidad ×0.78' },
+            medium: { mult: 1.00, label: 'Medio: para asustarse un poco',    multTxt: 'Velocidad ×1.00' },
+            hard:   { mult: 1.24, label: 'Difícil: para saltar del susto',   multTxt: 'Velocidad ×1.24' }
+        };
+        let difficultyMode = 'medium';
+        const erranteSpeedMult = () => (DIFF_MODES[difficultyMode] || DIFF_MODES.medium).mult;
 
         // El monstruo mide ~3.8, pero solo importan los bloques a su altura de tronco (1-2).
         function monsterBlockedAt(x, z, ignoreFire) {
@@ -8335,7 +8361,7 @@
                 const wp = siegeWaypoint(mx, mz, tx, tz);
                 const dx = wp.x - mx, dz = wp.z - mz, d = Math.hypot(dx, dz);
                 if (d > 0.2) {
-                    const sp = nearFire(mx, mz, 7) ? speed * 0.4 : speed;
+                    const sp = (nearFire(mx, mz, 7) ? speed * 0.4 : speed) * erranteSpeedMult();
                     const x0 = monster.position.x, z0 = monster.position.z;
                     let ux = dx / d, uz = dz / d;
                     const nd = navDir(mx, mz, wp.x, wp.z, delta);
@@ -9044,6 +9070,7 @@
                         lungeTimer = inBr ? 4.5 + Math.random() * 2.0 : ((ch3 ? 5.5 : 5) + Math.random() * 2.5);
                     }
             }
+            if (speed > 0) speed *= erranteSpeedMult();
 
             // El fuego la repele: no entra en el círculo de una fogata/antorcha, la rodea gruñendo, y cerca de cualquier llama va más lenta
             let cowering = false;
@@ -9075,7 +9102,7 @@
                 if (orbitT <= 0) { orbitT = 3 + Math.random() * 3; sidestepSign = -sidestepSign; }
                 const ox = mx - nf.f.x, oz = mz - nf.f.z, od = Math.hypot(ox, oz) || 1;
                 dx = -oz / od * sidestepSign + ox / od * 0.15; dz = ox / od * sidestepSign + oz / od * 0.15;   // tangente al borde
-                speed = Math.min(speed, 2.4);
+                speed = Math.min(speed, 2.4 * erranteSpeedMult());
                 growlTimer = Math.min(growlTimer, 2.5 + Math.random() * 2);
             }
 
@@ -12981,12 +13008,25 @@
         const lsSet = (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } };
         const lsDel = (k) => { try { localStorage.removeItem(k); } catch (e) { /* sin almacenamiento */ } };
         const storageOK = lsSet('cabana_test', '1'); lsDel('cabana_test');
-        const OPT = { vol: 0.7, sens: 1, voice: true, cont: 'cabin', autoFs: false };   // cont: dónde apareces al continuar (cabin · respawn · saved)
+        const OPT = { vol: 0.7, sens: 1, voice: true, cont: 'cabin', autoFs: false, diff: 'medium' };   // cont: dónde apareces al continuar (cabin · respawn · saved) · diff: dificultad del Errante
         try { Object.assign(OPT, JSON.parse(lsGet('cabana_opts') || '{}')); } catch (e) { /* opciones por defecto */ }
         OPT.cont = ['cabin', 'respawn', 'saved'].includes(OPT.cont) ? OPT.cont : 'cabin';
+        OPT.diff = DIFF_MODES[OPT.diff] ? OPT.diff : 'medium';
         OPT.vol = Math.min(1, Math.max(0, +OPT.vol || 0)); OPT.sens = Math.min(2.5, Math.max(0.3, +OPT.sens || 1)); OPT.voice = OPT.voice !== false; OPT.autoFs = OPT.autoFs === true;
         const saveOpts = () => lsSet('cabana_opts', JSON.stringify(OPT));
         const applyAudioOpt = () => { if (masterGain) masterGain.gain.value = OPT.vol; };
+        function setDifficulty(val, silent) {
+            const key = DIFF_MODES[val] ? val : 'medium';
+            OPT.diff = difficultyMode = key;
+            const cfg = DIFF_MODES[key];
+            const mSel = $('m-difficulty'), mMult = $('m-diff-mult'), oSel = $('opt-difficulty');
+            if (mSel && mSel.value !== key) mSel.value = key;
+            if (oSel && oSel.value !== key) oSel.value = key;
+            if (mMult) mMult.textContent = cfg.multTxt;
+            if (!silent) saveOpts();
+        }
+        setDifficulty(OPT.diff, true);
+        if ($('m-difficulty')) $('m-difficulty').addEventListener('change', (e) => { initAudio(); applyAudioOpt(); playSound('click', 0.6); setDifficulty(e.target.value); });
 
         let activeSlot = -1, lastSlotUsed = -1, playSeconds = 0, autoT = 0, pendingSave = null, lastThumb = null;
         const slotKey = (i) => 'cabana_slot' + (i + 1), metaKey = (i) => 'cabana_slot' + (i + 1) + '_meta';
@@ -13254,6 +13294,11 @@
         function openOptions() {
             openPanel('options', 'Opciones', (b) => {
                 const row = (label, note, ctrl) => { const r = el('div', 'opt-row'); const l = el('div', '', `<label>${label}</label>${note ? `<small>${note}</small>` : ''}`); r.append(l, ctrl); b.append(r); };
+                const diffSel = el('select', 'diff-select'); diffSel.id = 'opt-difficulty';
+                Object.entries(DIFF_MODES).forEach(([k, d]) => { const o = document.createElement('option'); o.value = k; o.textContent = d.label; diffSel.append(o); });
+                diffSel.value = OPT.diff;
+                diffSel.onchange = () => { initAudio(); applyAudioOpt(); playSound('click', 0.6); setDifficulty(diffSel.value); };
+                row('Dificultad del Errante', 'Ajusta dinámicamente la velocidad del Errante.', diffSel);
                 const vol = el('input'); vol.type = 'range'; vol.min = 0; vol.max = 100; vol.value = Math.round(OPT.vol * 100);
                 vol.oninput = () => { OPT.vol = vol.value / 100; applyAudioOpt(); saveOpts(); }; vol.onchange = () => { initAudio(); applyAudioOpt(); playSound('click', 0.8); };
                 row('Volumen general', 'Música, ambiente y efectos.', vol);
