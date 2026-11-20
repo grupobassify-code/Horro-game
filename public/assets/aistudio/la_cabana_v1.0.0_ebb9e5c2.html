@@ -6384,8 +6384,8 @@
             setText($('quest-coins'), `🪙 ${coins}`);
             const listEl = $('quest-list');
             if (questTab === 'traders') {
-                listEl.innerHTML = MERCHANTS.map((m) =>
-                    `<div class="q-card"><div class="q-ic">${m.icon}</div><div class="q-body"><b>${m.name} · <span style="color:#ffd859">X ${Math.round(m.x)} · Z ${Math.round(m.z)}</span></b><small>${m.desc}</small></div></div>`
+                listEl.innerHTML = '<div class="gd-note">☀️ Los comerciantes recorren sus zonas durante el <b>día</b> y desaparecen al caer la noche.</div>' + MERCHANTS.map((m) =>
+                    `<div class="q-card"><div class="q-ic">${m.icon}</div><div class="q-body"><b>${m.name} · <span style="color:#ffd859">X ${Math.round(m.homeX)} · Z ${Math.round(m.homeZ)}</span></b><small>${m.desc}</small></div></div>`
                 ).join('');
                 return;
             }
@@ -6488,9 +6488,12 @@
                 m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
                 parent.add(m); return m;
             };
+            // Piernas articuladas para caminar
+            const legL = new THREE.Group(); legL.position.set(-0.14, 0.45, 0); g.add(legL);
+            box(legL, 0.2, 0.45, 0.22, 0x2a1f18, 0, -0.225, 0);
+            const legR = new THREE.Group(); legR.position.set(0.14, 0.45, 0); g.add(legR);
+            box(legR, 0.2, 0.45, 0.22, 0x2a1f18, 0, -0.225, 0);
             // Cuerpo del viajero
-            box(g, 0.2, 0.45, 0.22, 0x2a1f18, -0.14, 0.225, 0);
-            box(g, 0.2, 0.45, 0.22, 0x2a1f18, 0.14, 0.225, 0);
             box(g, 0.56, 0.92, 0.38, cfg.cloak, 0, 0.88, 0);
             box(g, 0.64, 0.24, 0.42, cfg.hood, 0, 1.28, 0);
             // Mochila de carga a la espalda
@@ -6508,35 +6511,105 @@
             box(lanternPivot, 0.12, 0.16, 0.12, 0xffd27a, 0, -0.22, 0, 0xff9f3a);
             const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireGlowTexture, color: 0xffb454, transparent: true, opacity: 0.72, blending: THREE.AdditiveBlending, depthWrite: false }));
             glow.scale.set(2.4, 2.4, 1); glow.position.set(0, -0.22, 0); lanternPivot.add(glow);
-            // Caja de mercancía junto al comerciante
-            box(g, 0.56, 0.48, 0.56, 0x7c5432, 0.66, 0.24, 0.22);
-            box(g, 0.22, 0.16, 0.22, 0xd4a446, 0.66, 0.56, 0.22, 0x503a0a);
             // Hitbox invisible para apuntar con facilidad
             const hit = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.2, 1.4), new THREE.MeshBasicMaterial());
             hit.position.set(0, 1.1, 0); hit.visible = false; g.add(hit);
             scene.add(g);
-            return { ...cfg, mesh: g, hit, glow, lanternPivot, heading: Math.atan2(-cfg.x, -cfg.z) };
+            // Caja de mercancía fija en su puesto (desaparece con él de noche)
+            const camp = new THREE.Group();
+            camp.position.set(cfg.x + 0.85, GROUND, cfg.z + 0.35);
+            box(camp, 0.56, 0.48, 0.56, 0x7c5432, 0, 0.24, 0);
+            box(camp, 0.22, 0.16, 0.22, 0xd4a446, 0, 0.56, 0, 0x503a0a);
+            scene.add(camp);
+            return {
+                ...cfg, homeX: cfg.x, homeZ: cfg.z, tx: cfg.x, tz: cfg.z,
+                state: 'idle', timer: 1 + Math.random() * 2.5, walkT: Math.random() * 6, spd: 0,
+                mesh: g, camp, hit, glow, lanternPivot, legL, legR, heading: Math.atan2(-cfg.x, -cfg.z)
+            };
         }
         for (const cfg of MERCHANT_DEFS) MERCHANTS.push(buildMerchantRig(cfg));
 
+        function merchantBlocked(m, nx, nz) {
+            if (Math.hypot(nx - m.homeX, nz - m.homeZ) > 4.6) return true;
+            if (Math.hypot(nx - (m.homeX + 0.85), nz - (m.homeZ + 0.35)) < 0.85) return true;
+            if (Math.abs(nx) < 4.8 && nz > -4.6 && nz < 5.6) return true;   // no atravesar la cabaña
+            const gx = Math.floor(nx + 0.5), gz = Math.floor(nz + 0.5);
+            if (!chunks.has(chunkKey(gx >> 4, gz >> 4))) return true;
+            if (isSolid(gx, 1, gz) || isSolid(gx, 2, gz)) return true;
+            const g = blockAt(gx, 0, gz);
+            return g === B.WATER || g === 0;
+        }
         function updateMerchants(delta) {
-            const hide = inBackrooms() || inTent;
+            const hide = inBackrooms() || inTent || isNight || finalNight;
             for (const m of MERCHANTS) {
                 m.mesh.visible = !hide;
-                if (hide) continue;
-                const dx = player.position.x - m.x, dz = player.position.z - m.z, d = Math.hypot(dx, dz);
-                if (d < 12) {
-                    const targetH = Math.atan2(dx, dz);
-                    m.heading += wrapPi(targetH - m.heading) * Math.min(1, delta * 4);
+                if (m.camp) m.camp.visible = !hide;
+                if (hide) {
+                    if (shopOpen && activeMerchant === m) {
+                        closeShop(true);
+                        if (isNight || finalNight) toast('🌙 CAE LA NOCHE · LOS COMERCIANTES SE HAN MARCHADO');
+                    }
+                    m.x = m.homeX; m.z = m.homeZ; m.state = 'idle'; m.spd = 0;
+                    m.mesh.position.set(m.x, GROUND, m.z);
+                    m.legL.rotation.x = 0; m.legR.rotation.x = 0;
+                    continue;
                 }
+                const dx = player.position.x - m.x, dz = player.position.z - m.z, d = Math.hypot(dx, dz);
+                let targetH = m.heading, wantSpd = 0;
+                const talking = (shopOpen && activeMerchant === m) || d < 3.6;
+                if (talking) {
+                    targetH = Math.atan2(dx, dz);
+                    m.state = 'idle';
+                    m.timer = 1.6 + Math.random() * 2;
+                } else if (d < 48) {
+                    m.timer -= delta;
+                    if (m.state === 'idle') {
+                        if (m.timer <= 0) {
+                            let picked = false;
+                            for (let t = 0; t < 6; t++) {
+                                const ang = Math.random() * 6.283, r = 1.2 + Math.random() * 3.1;
+                                const tx = m.homeX + Math.cos(ang) * r, tz = m.homeZ + Math.sin(ang) * r;
+                                if (!merchantBlocked(m, tx, tz)) {
+                                    m.tx = tx; m.tz = tz; m.state = 'walk'; m.timer = 3.5 + Math.random() * 3.5; picked = true; break;
+                                }
+                            }
+                            if (!picked) m.timer = 2.0;
+                        }
+                    } else {
+                        const wx = m.tx - m.x, wz = m.tz - m.z, wd = Math.hypot(wx, wz);
+                        if (wd < 0.35 || m.timer <= 0) {
+                            m.state = 'idle'; m.timer = 2.0 + Math.random() * 3.8;
+                        } else {
+                            targetH = Math.atan2(wx, wz);
+                            wantSpd = 1.15;
+                        }
+                    }
+                }
+                m.heading += wrapPi(targetH - m.heading) * Math.min(1, delta * (talking ? 6 : 3.8));
+                m.spd += (wantSpd - m.spd) * Math.min(1, delta * 6);
+                if (m.spd > 0.04 && !talking) {
+                    const nx = m.x + Math.sin(m.heading) * m.spd * delta;
+                    const nz = m.z + Math.cos(m.heading) * m.spd * delta;
+                    if (!merchantBlocked(m, nx, nz)) { m.x = nx; m.z = nz; }
+                    else if (!merchantBlocked(m, nx, m.z)) m.x = nx;
+                    else if (!merchantBlocked(m, m.x, nz)) m.z = nz;
+                    else { m.state = 'idle'; m.timer = 1.2 + Math.random() * 2; m.spd = 0; }
+                }
+                const walkAmt = Math.min(1, m.spd / 1.15);
+                if (walkAmt > 0.05) m.walkT += delta * (3.2 + m.spd * 2.4);
+                const legSwing = Math.sin(m.walkT) * 0.42 * walkAmt;
+                m.legL.rotation.x += (legSwing - m.legL.rotation.x) * Math.min(1, delta * 12);
+                m.legR.rotation.x += (-legSwing - m.legR.rotation.x) * Math.min(1, delta * 12);
+                const bobY = GROUND + Math.abs(Math.sin(m.walkT)) * 0.032 * walkAmt;
+                m.mesh.position.set(m.x, bobY, m.z);
                 m.mesh.rotation.y = m.heading;
-                m.lanternPivot.rotation.z = Math.sin(time * 2.1 + m.x) * 0.07;
-                const pulse = 0.68 + Math.sin(time * 4.5 + m.z) * 0.12;
+                m.lanternPivot.rotation.z = Math.sin(time * 2.1 + m.homeX) * (0.07 + 0.06 * walkAmt);
+                const pulse = 0.68 + Math.sin(time * 4.5 + m.homeZ) * 0.12;
                 m.glow.material.opacity = pulse;
                 m.glow.scale.setScalar(2.1 + pulse * 0.5);
             }
             if (shopOpen && activeMerchant) {
-                if (hide || Math.hypot(activeMerchant.x - player.position.x, activeMerchant.z - player.position.z) > 6.2) closeShop(true);
+                if (hide || Math.hypot(activeMerchant.x - player.position.x, activeMerchant.z - player.position.z) > 6.5) closeShop(true);
             }
         }
         function renderShop() {
@@ -10587,9 +10660,10 @@
                 const d = _v.length();
                 if (d < (p.isTent ? 5.2 : 4) && d < (best ? best.d : 9) + 0.5 && _v.dot(_rd) / d > (p.type === 'ladder' ? 0.99 : p.isTent ? 0.88 : 0.97)) best = { type: 'prop', prop: p, d };
             }
-            if (!inBackrooms() && !inTent) {
+            if (!inBackrooms() && !inTent && !isNight && !finalNight) {
                 camera.getWorldDirection(_rd);
                 for (const m of MERCHANTS) {
+                    if (!m.mesh.visible) continue;
                     const mh = raycaster.intersectObject(m.hit, false)[0];
                     if (mh && mh.distance < 4.5 && mh.distance < (best ? best.d : 9)) {
                         best = { type: 'merchant', m, d: mh.distance };
@@ -13371,6 +13445,12 @@
             craftOpen = false; setDisplay(craftPanel, 'none'); guideOpen = false; setDisplay(guidePanel, 'none'); if (stoveOpen) closeStove();
             questOpen = false; setDisplay(questPanel, 'none'); shopOpen = false; activeMerchant = null; setDisplay(shopPanel, 'none');
             coins = 0; questJournal = false; questTab = 'active'; questState = { prog: {}, done: {}, repCount: {} };
+            for (const m of MERCHANTS) {
+                m.x = m.homeX; m.z = m.homeZ; m.state = 'idle'; m.spd = 0; m.timer = 1 + Math.random() * 2;
+                m.mesh.position.set(m.x, GROUND, m.z); m.mesh.visible = true;
+                if (m.camp) m.camp.visible = true;
+                m.legL.rotation.x = 0; m.legR.rotation.x = 0;
+            }
             updateQuestHUD();
             chestOpen = false; chestProp = null; setDisplay(chestPanel, 'none');
             for (const p of PARTS) { p.life = 0; p.mesh.visible = false; }
