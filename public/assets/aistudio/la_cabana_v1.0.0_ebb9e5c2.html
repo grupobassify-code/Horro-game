@@ -95,12 +95,29 @@
             border-color: rgba(212, 186, 62, 0.62);
             box-shadow: 0 0 18px rgba(155, 130, 20, 0.45);
         }
+        body.ch4-backrooms #hunger-card,
+        body.ch4-backrooms #btn-craft,
+        body.ch4-backrooms #btn-eat,
+        body.ch4-backrooms #guide-recipes {
+            display: none !important;
+        }
         body.ch4-backrooms #ch3-scanlines {
             opacity: 0.24 !important;
             background: repeating-linear-gradient(0deg, rgba(18, 16, 4, 0.28) 0px, rgba(18, 16, 4, 0.28) 1px, rgba(255, 236, 130, 0.03) 1px, rgba(255, 236, 130, 0.03) 3px);
         }
         body.ch4-backrooms #vignette {
             box-shadow: inset 0 0 150px rgba(24, 20, 4, 0.92);
+        }
+        body.ch4-backrooms.ch4-level2 #hud-top .status-card {
+            border-color: rgba(255, 68, 68, 0.72);
+            box-shadow: 0 0 18px rgba(185, 22, 22, 0.55);
+        }
+        body.ch4-backrooms.ch4-level2 #ch3-scanlines {
+            opacity: 0.36 !important;
+            background: repeating-linear-gradient(0deg, rgba(34, 4, 4, 0.34) 0px, rgba(34, 4, 4, 0.34) 1px, rgba(255, 95, 70, 0.05) 1px, rgba(255, 95, 70, 0.05) 3px);
+        }
+        body.ch4-backrooms.ch4-level2 #vignette {
+            box-shadow: inset 0 0 165px rgba(55, 4, 4, 0.95);
         }
 
         #scare-face { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; pointer-events: none; z-index: 80; filter: contrast(1.25) saturate(1.2); }
@@ -756,7 +773,7 @@
             CORDURA:
             <div class="bar-container"><div id="sanity-fill"></div></div>
         </div>
-        <div class="status-card">
+        <div class="status-card" id="hunger-card">
             🍖 COMIDA:
             <div class="bar-container"><div id="hunger-fill"></div></div>
         </div>
@@ -2491,12 +2508,25 @@
         const PKX = POCKET.cx * CS + 8, PKZ = POCKET.cz * CS + 8;   // centro del cuarto
         const isPocketChunk = (cx, cz) => Math.abs(cx - POCKET.cx) <= 12 && Math.abs(cz - POCKET.cz) <= 12;
         let inTent = false, tentFrom = null, pocketInit = false;
-        // --- Capítulo 4: Los Backrooms (Nivel 0) · laberinto lejano aislado del bosque ---
+        // --- Capítulo 4: Los Backrooms · Nivel 1 (exploración sin monstruo) y Nivel 2 (huida del monstruo hasta la salida) ---
         const BR_CX = 3000, BR_CZ = 3000, BR_CELL = 6;
-        const BKX = BR_CX * CS + 8, BKZ = BR_CZ * CS + 8;       // 48008, 48008
+        const BKX = BR_CX * CS + 8, BKZ = BR_CZ * CS + 8;       // 48008, 48008 (Nivel 1)
         const BKX_SPAWN = BKX + 3, BKZ_SPAWN = BKZ + 3;          // 48011, 48011 (centro de la celda inicial 0,0)
-        const isBackroomChunk = (cx, cz) => Math.abs(cx - BR_CX) <= 18 && Math.abs(cz - BR_CZ) <= 18;
-        const inBackrooms = () => chapter >= 4 && !inTent && Math.abs(player.position.x - BKX) < 320 && Math.abs(player.position.z - BKZ) < 320;
+        const BR2_CX = 3200, BR2_CZ = 3200;
+        const BKX2 = BR2_CX * CS + 8, BKZ2 = BR2_CZ * CS + 8;    // 51208, 51208 (Nivel 2)
+        const BKX2_SPAWN = BKX2 + 3, BKZ2_SPAWN = BKZ2 + 3;      // 51211, 51211
+        const BR1_DOOR_X = BKX - 33, BR1_DOOR_Z = BKZ + 35.1;    // puerta del Sector Carmesí (Nivel 1 -> Nivel 2)
+        const BR2_DOOR_X = BKX2 + 3, BR2_DOOR_Z = BKZ2 - 47.0;   // puerta de salida verde (Nivel 2 -> Mundo Principal)
+        let brLevel = 1, backroomsEscaped = false;
+        const isBr1Chunk = (cx, cz) => Math.abs(cx - BR_CX) <= 18 && Math.abs(cz - BR_CZ) <= 18;
+        const isBr2Chunk = (cx, cz) => Math.abs(cx - BR2_CX) <= 18 && Math.abs(cz - BR2_CZ) <= 18;
+        const isBackroomChunk = (cx, cz) => isBr1Chunk(cx, cz) || isBr2Chunk(cx, cz);
+        const activeBrOrigin = () => (Math.abs(player.position.x - BKX2) < 340 && Math.abs(player.position.z - BKZ2) < 340)
+            ? { x: BKX2, z: BKZ2, level: 2 } : { x: BKX, z: BKZ, level: 1 };
+        const inBackrooms = () => chapter >= 4 && !backroomsEscaped && !inTent && (
+            (Math.abs(player.position.x - BKX) < 320 && Math.abs(player.position.z - BKZ) < 320) ||
+            (Math.abs(player.position.x - BKX2) < 320 && Math.abs(player.position.z - BKZ2) < 320)
+        );
         let brGraceT = 0;
         let ch3Trap = { active: false, t: 0 };
         const POCKET_LV = [{ h: 1, ceil: 4 }, { h: 2, ceil: 4 }, { h: 3, ceil: 5 }, { h: 4, ceil: 6 }];   // h: semilado del interior (3x3, 5x5, 7x7, 9x9); ceil: altura del techo
@@ -2593,12 +2623,12 @@
             { type: 'observ',    x: -88,  z: 98,   pageY: 0.95, name: 'EL MIRADOR QUEBRADO' },
             { type: 'crypt',     x: 42,   z: -112, pageY: 0.95, name: 'LA CRIPTA DEL NOMBRE' },
             { type: 'nexus',     x: 114,  z: -86,  pageY: 1.95, name: 'EL NÚCLEO DEL CIERVO' },
-            // --- Capítulo 4: Los Backrooms (Nivel 0) ---
-            { type: 'br_lobby',   x: BKX + 27, z: BKZ + 3,  pageY: 0.95, name: 'RECEPCIÓN HÚMEDA · NIVEL 0' },
-            { type: 'br_pillar',  x: BKX - 21, z: BKZ - 15, pageY: 0.95, name: 'SALA DE LAS COLUMNAS' },
-            { type: 'br_office',  x: BKX + 33, z: BKZ + 33, pageY: 0.95, name: 'OFICINA SIN VENTANAS' },
-            { type: 'br_redroom', x: BKX - 33, z: BKZ + 33, pageY: 0.95, name: 'EL CORREDOR CARMESÍ' },
-            { type: 'br_exit',    x: BKX + 3,  z: BKZ - 39, pageY: 0.95, name: 'LA PUERTA DE SALIDA' }
+            // --- Capítulo 4: Los Backrooms (Nivel 1 y Nivel 2) ---
+            { type: 'br_lobby',   x: BKX + 27, z: BKZ + 3,   pageY: 0.95, name: 'RECEPCIÓN HÚMEDA · NIVEL 1' },
+            { type: 'br_pillar',  x: BKX - 21, z: BKZ - 15,  pageY: 0.95, name: 'SALA DE LAS COLUMNAS · NIVEL 1' },
+            { type: 'br_office',  x: BKX + 33, z: BKZ + 33,  pageY: 0.95, name: 'OFICINA SIN VENTANAS · NIVEL 1' },
+            { type: 'br_redroom', x: BKX - 33, z: BKZ + 33,  pageY: 0.95, name: 'EL SECTOR CARMESÍ · PUERTA AL NIVEL 2' },
+            { type: 'br_exit',    x: BKX2 + 3, z: BKZ2 - 45, pageY: 0.95, name: 'LA PUERTA DE SALIDA · NIVEL 2' }
         ];
         const STORY = [
             { title: 'Los que vinieron a buscarme', text: 'Día 3. Los aldeanos subieron con antorchas y acamparon al borde del bosque. Nadie volvió. Encontré sus mochilas, su fogata fría y unas huellas que no son de bota alguna: pezuñas largas, demasiado largas. Lo que camina aquí solo sale de noche.' },
@@ -2620,12 +2650,12 @@
             { title: 'Tu nombre bajo el óxido', text: 'Registro arrancado del mirador. En la viga principal encontraste tu propio nombre grabado cientos de veces, superpuesto como un error que se repite sin fin. Ya no finge congelarse cuando lo miras: sostenerle la vista lo enfurece y lo lanza contra ti. Las puertas sin tablas ceden en la mitad de tiempo y la linterna apenas lo frena.' },
             { title: 'La verdad del hambre', text: 'Inscripción de la cripta profunda. Todas las ilusiones, los fallos en tu visión y los susurros entre la niebla eran ensayos del Ciervo para borrar tu mente antes que tu cuerpo. Al quedarse sin recipiente humano, el monstruo se devora a sí mismo y consume el bosque con él. Solo hay un modo de apagarlo para siempre: alcanzar su Núcleo y sobrevivir al último colapso en la cabaña.' },
             { title: 'Noche de la Grieta', text: 'Último sello roto sobre el Núcleo del Ciervo. «Ya no hay máscara. Ya no hay niebla donde esconderme. Sé qué soy, y tú sabes demasiado.» El cielo se fractura en rojo y negro. Al arrancar el último sello, la trampa del Núcleo se cierra sobre ti: las garras del Ciervo Hueco rasgan el aire y caes fuera de la realidad.' },
-            // --- Capítulo 4: Los Backrooms (Nivel 0) ---
-            { title: 'Fuera de la realidad', text: 'Hoja mojada sobre una caja vacía, bajo el zumbido constante de los fluorescentes. Si estás leyendo esto es que el Ciervo Hueco no te mató en el bosque: al desgarrarte en el Núcleo rompiste el suelo del mundo y caíste aquí. Alfombra húmeda, papel tapiz amarillo con olor a sótano viejo y seiscientos millones de kilómetros de pasillos idénticos. Pero no caíste solo.' },
-            { title: 'El zumbido amarillo', text: 'Nota pegada a una columna. Llevo horas contando los paneles del techo. Hay zonas donde las luces parpadean y otras donde el pasillo queda a oscuras. Quien camina bajo las lámparas conserva la mente un poco más entera; en la penumbra, el zumbido te muerde los nervios. Escucha las esquinas antes de doblar: aquí algo alto arrastra las pezuñas sobre la alfombra mojada.' },
-            { title: 'Cajas de otro tiempo', text: 'Registro escrito en la esquina de una mesa podrida. No sé cómo llegaron estas cajas ni esta fogata apagada aquí abajo. Quizá otros guardabosques también atravesaron la grieta antes que yo. La puerta del bosque ya no existe, pero la llama y el flash de la cámara siguen frenando a la bestia: también aquí le duele la luz concentrada.' },
-            { title: 'El sector carmesí', text: 'Papel arrancado, manchado de humedad roja. Cuando el papel amarillo se tiñe de rojo, el Nivel 0 se está pudriendo por dentro. Es la huella del Ciervo Hueco intentando reconstruirse dentro de los Backrooms. Solo falta un punto más en estos pasillos: busca el umbral verde de salida al norte antes de que el laberinto se cierre contigo dentro.' },
-            { title: 'La puerta verde', text: 'Última hoja, clavada junto a un marco iluminado de verde. «Noclip inverso · Salida de emergencia.» Al tocar esta página sientes aire frío de pino detrás de las paredes amarillas y el zumbido eléctrico se apaga de golpe. Detrás del umbral espera de nuevo el cielo abierto: has cruzado los Backrooms y has salido con vida.' }
+            // --- Capítulo 4: Los Backrooms (Nivel 1 y Nivel 2) ---
+            { title: 'Fuera de la realidad', text: 'Hoja mojada sobre una caja vacía, bajo el zumbido constante de los fluorescentes. Si estás leyendo esto es que el Ciervo Hueco no te mató en el bosque: al desgarrarte en el Núcleo rompiste el suelo del mundo y caíste al Nivel 1. Alfombra húmeda, papel tapiz amarillo y silencio absoluto: aquí abajo el hambre no existe y la criatura aún no ha cruzado... todavía.' },
+            { title: 'El zumbido amarillo', text: 'Nota pegada a una columna. Llevo horas siguiendo las flechas del suelo bajo los paneles fluorescentes. Quien camina bajo las lámparas conserva la mente más entera; en las salas oscuras, el zumbido muerde los nervios. Aprovecha este primer nivel para explorar sin peligro y sigue las flechas amarillas hacia el siguiente punto.' },
+            { title: 'Cajas de otro tiempo', text: 'Registro escrito en la esquina de una mesa podrida. No sé cómo llegaron estas cajas ni esta fogata apagada aquí abajo. Aquí no hay madera ni herramientas que fabricar: solo recorrer los pasillos y seguir las señales hasta encontrar el umbral hacia el Nivel 2. Allí abajo sí se oyen pasos...' },
+            { title: 'La puerta al Nivel 2', text: 'Papel manchado de humedad roja junto al umbral del Sector Carmesí. Has reunido todas las pistas del primer nivel. Detrás de esta puerta comienza el Nivel 2 —el nivel de salida— y allí el Ciervo Hueco ya te espera para cazar. Abre la puerta cuando estés listo, sigue las flechas luminosas sin detenerte, usa el flash (C) si se acerca y cruza la Puerta Verde final para volver al mundo principal.' },
+            { title: 'La puerta de salida', text: 'Última hoja, clavada junto al marco verde del Nivel 2. «Noclip inverso · Regreso al mundo principal.» Al abrir la Puerta de Salida, el zumbido de los Backrooms se apaga detrás de ti y vuelves a respirar el aire frío del bosque de Pinar Hueco.' }
         ];
         const EPILOGUE = 'El sol rompe entre los árboles y el Errante se deshace en la niebla, como un mal sueño. En el círculo queda la huella de un ciervo... y el diario de tu tío, completo. El bosque guarda silencio. Por esta vez, la maldición terminó. Pero en la puerta de la cabaña ya hay un nombre nuevo grabado: el tuyo.';
 
@@ -2633,9 +2663,9 @@
 
         const EPILOGUE3 = 'El Ciervo Hueco te destrozó en su Núcleo... pero el golpe partió el suelo del mundo y te arrojó a un espacio amarillo interminable bajo luces fluorescentes.';
 
-        const EPILOGUE4 = 'Cruzas el umbral verde mientras el zumbido eléctrico de los Backrooms se apaga a tu espalda. El papel amarillo y la alfombra húmeda quedan atrás; el aire frío del mundo real vuelve a llenarte los pulmones y ni siquiera la sombra del Ciervo Hueco puede seguirte fuera del laberinto. Has sobrevivido al bosque, a la grieta y al Nivel 0.';
+        const EPILOGUE4 = 'Abres la Puerta Verde del Nivel 2 y cruzas de golpe mientras el zumbido eléctrico de los Backrooms se apaga a tu espalda. El papel amarillo, el sector carmesí y las garras del Ciervo Hueco quedan atrás: has regresado sano y salvo al bosque del mundo principal.';
 
-        const pageLabel = (i) => i < CH1_PAGES ? `PÁGINA ${i + 1}/${CH1_PAGES}` : (i < CH1_PAGES + CH2_PAGES ? `FRAGMENTO ${i - CH1_PAGES + 1}/${CH2_PAGES}` : (i < CH1_PAGES + CH2_PAGES + CH3_PAGES ? `FRACTURA ${i - CH1_PAGES - CH2_PAGES + 1}/${CH3_PAGES}` : `NIVEL 0 · ${i - CH1_PAGES - CH2_PAGES - CH3_PAGES + 1}/${CH4_PAGES}`));
+        const pageLabel = (i) => i < CH1_PAGES ? `PÁGINA ${i + 1}/${CH1_PAGES}` : (i < CH1_PAGES + CH2_PAGES ? `FRAGMENTO ${i - CH1_PAGES + 1}/${CH2_PAGES}` : (i < CH1_PAGES + CH2_PAGES + CH3_PAGES ? `FRACTURA ${i - CH1_PAGES - CH2_PAGES + 1}/${CH3_PAGES}` : (i < CH1_PAGES + CH2_PAGES + CH3_PAGES + 4 ? `NIVEL 1 · ${i - CH1_PAGES - CH2_PAGES - CH3_PAGES + 1}/4` : `NIVEL 2 · SALIDA`)));
         function monsterLore() {   // lo que ya sabes del Errante / Ciervo Hueco según los fragmentos leídos
             const L = [];
             if (nextPage > 7) L.push('<p><b>Su verdadero nombre:</b> Aldric Voss, leñador viudo y primer guardabosques de Valdeniebla hace trescientos años. No nació monstruo: nació hombre.</p>');
@@ -2647,7 +2677,7 @@
             if (nextPage > 13) L.push('<p><b>La fractura del mundo:</b> el bosque se volvió más oscuro y la realidad se rompe con fallos por todas partes; el monstruo puede abrir brechas incluso de día.</p>');
             if (nextPage > 14) L.push('<p><b>Furia absoluta:</b> ya no se queda inmóvil si lo miras —mirarlo lo enfurece—, rompe puertas sin tablas al doble de velocidad y apenas cede ante la linterna.</p>');
             if (nextPage > 15) L.push('<p><b>Su punto débil final:</b> sigue respetando las fogatas encendidas, los territorios sagrados, las puertas reforzadas con tablas y el flash de la cámara (aunque se recupera más rápido).</p>');
-            if (nextPage > 16) L.push('<p><b>El Núcleo y el Noclip (Cap. 4):</b> al llegar al Núcleo el Ciervo Hueco te desgarró y caíste fuera de la realidad hacia Los Backrooms, aunque también él logró seguirte entre los pasillos amarillos.</p>');
+            if (nextPage > 16) L.push('<p><b>El Núcleo y Los Backrooms (Cap. 4):</b> al caer al Nivel 1 estás a salvo para explorar sin monstruo ni hambre siguiendo las flechas; al cruzar al Nivel 2 el monstruo te persigue hasta la Puerta de Salida que devuelve al mundo principal.</p>');
             return L.join('');
         }
         const nearAnySite = (x, z, r) => STORY_SITES.some(s => Math.hypot(s.x - x, s.z - z) < r);
@@ -2680,11 +2710,11 @@
             observ:    'Un mirador de madera y piedra quebrado sobre el límite oeste del pantano',
             crypt:     'Una cripta hundida de ladrillo y piedra cubierta de musgo, con antorchas apagadas en la entrada',
             nexus:     'Un santuario de pilares carbonizados con runas rojas en el suelo: el núcleo donde late el Ciervo Hueco',
-            br_lobby:   'Una sala amplia de papel amarillo húmedo con cajas olvidadas al este del inicio',
-            br_pillar:  'Un cruce rodeado de columnas y zumbido eléctrico al noroeste del Nivel 0',
-            br_office:  'Una oficina sin ventanas con restos de alguien que intentó encender fuego en la alfombra',
-            br_redroom: 'El sector carmesí: paredes amarillas teñidas de rojo donde late la infección del Ciervo',
-            br_exit:    'Un arco verde luminoso en el extremo norte del Nivel 0: la salida fuera de los Backrooms'
+            br_lobby:   'Una sala amplia de papel amarillo húmedo al este del inicio (Nivel 1)',
+            br_pillar:  'Un cruce rodeado de columnas y zumbido eléctrico al noroeste (Nivel 1)',
+            br_office:  'Una oficina sin ventanas con cajas abandonadas al sureste (Nivel 1)',
+            br_redroom: 'El sector carmesí al suroeste del Nivel 1: allí está la puerta hacia el Nivel 2',
+            br_exit:    'El arco verde de la Puerta de Salida al final del Nivel 2: ábrela para volver al mundo principal'
         };
         // Presagios al amanecer (el día 5 se ven los arañazos y el día 6 el diario muestra el rumbo)
         const OMENS = {
@@ -2768,6 +2798,7 @@
         }
         function lakeAt(x, z, m) {   // ¿(x, z) cae dentro de un lago? `m` agranda la orilla (margen)
             if (Math.abs(x - BKX) < 340 && Math.abs(z - BKZ) < 340) return false;
+            if (Math.abs(x - BKX2) < 340 && Math.abs(z - BKZ2) < 340) return false;
             if (Math.abs(x - PKX) < 220 && Math.abs(z - PKZ) < 220) return false;
             const h = getHomeLake();
             if (h && inLake(h, x, z, m)) return true;
@@ -3532,16 +3563,19 @@
                 dec.supply(x, z + 2, 'br_office' + x);
                 dec.chest(x - 2, z - 2, 'site_br_office', 2, undefined, 0);
             },
-            br_redroom(s, set, dec) {   // sector carmesí infectado por el Ciervo Hueco
+            br_redroom(s, set, dec) {   // sector carmesí + umbral hacia el Nivel 2
                 const { x, z } = s;
                 for (const [dx, dz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) {
                     for (let y = 1; y <= 5; y++) set(x + dx, y, z + dz, B.BR_REDWALL);
                 }
+                for (let y = 1; y <= 4; y++) { set(x - 1, y, z + 2, B.BR_REDWALL); set(x + 1, y, z + 2, B.BR_REDWALL); }
+                set(x, 4, z + 2, B.BR_REDWALL);
+                set(x, 1, z + 2, 0); set(x, 2, z + 2, 0); set(x, 3, z + 2, 0);
                 dec.runes(x, z, 0.52);
                 dec.bones(x - 2, z + 1);
-                dec.chest(x + 2, z + 2, 'site_br_redroom', 2, undefined, 0);
+                dec.chest(x + 2, z - 1, 'site_br_redroom', 2, undefined, 0);
             },
-            br_exit(s, set, dec) {   // arco verde luminoso de salida
+            br_exit(s, set, dec) {   // arco verde luminoso de salida al final del Nivel 2
                 const { x, z } = s;
                 for (let y = 1; y <= 4; y++) {
                     set(x - 1, y, z - 2, B.BR_EXIT);
@@ -3780,17 +3814,40 @@
                 set(x, ce, z, edge ? B.OAK_LOG : (L >= 3 ? B.WOOLB : B.CLOTH));
             }
         }
-        const BR_SITE_CELLS = new Set(['0,0', '4,0', '-4,-3', '5,5', '-6,5', '0,-7']);
-        function buildBackroomChunk(cx, cz, set) {   // Nivel 0: laberinto conectado de 6x6 con fluorescentes, sector carmesí y salida
+        const BR_SITE_CELLS = new Set(['0,0', '4,0', '-4,-3', '5,5', '-6,5']);
+        const BR2_SITE_CELLS = new Set(['0,0', '0,-8']);
+        function brCellOpen(gx, gz, isL2) {
+            const key = gx + ',' + gz;
+            const sd = isL2 ? 700 : 400;
+            const siteCell = isL2 ? BR2_SITE_CELLS.has(key) : BR_SITE_CELLS.has(key);
+            if (!isL2 && key === '-6,6') {   // muro sur detrás de la puerta al Nivel 2
+                return { siteCell: false, openW: false, openN: false, hasLamp: false };
+            }
+            if (isL2 && key === '0,-8') {     // muro norte detrás de la Puerta de Salida
+                return { siteCell: true, openW: true, openN: false, hasLamp: true };
+            }
+            const hDir = hash2(gx, gz, sd + 1);
+            let openW = siteCell || hDir >= 0.5 || hash2(gx, gz, sd + 4) < 0.36;
+            let openN = siteCell || hDir < 0.5 || hash2(gx, gz, sd + 3) < 0.36;
+            if (!isL2 && gz === 0 && gx >= 1 && gx <= 4) openW = true;       // asegura paso al lobby
+            if (!isL2 && gz === 5 && gx >= -5 && gx <= 5) openW = true;      // conecta oficina y sector carmesí
+            if (isL2 && gx === 0 && gz <= 0 && gz >= -7 && (Math.abs(gz) % 2 === 1)) openN = true;
+            const hasLamp = siteCell || hash2(gx, gz, sd + 5) > 0.14;
+            return { siteCell, openW, openN, hasLamp };
+        }
+        function buildBackroomChunk(cx, cz, set) {   // Nivel 1 y Nivel 2: laberinto conectado de 6x6 con fluorescentes y puertas de transición
+            const isL2 = isBr2Chunk(cx, cz);
+            const baseX = isL2 ? BKX2 : BKX, baseZ = isL2 ? BKZ2 : BKZ;
+            const sd = isL2 ? 700 : 400;
             const x0 = cx * CS, z0 = cz * CS;
             for (let lz = 0; lz < CS; lz++) {
                 for (let lx = 0; lx < CS; lx++) {
                     const wx = x0 + lx, wz = z0 + lz;
-                    const gx = Math.floor((wx - BKX) / BR_CELL), gz = Math.floor((wz - BKZ) / BR_CELL);
-                    const rx = ((wx - BKX) % BR_CELL + BR_CELL) % BR_CELL;
-                    const rz = ((wz - BKZ) % BR_CELL + BR_CELL) % BR_CELL;
-                    const siteCell = BR_SITE_CELLS.has(gx + ',' + gz);
-                    const crimson = gx <= -4 && gz >= 3;
+                    const gx = Math.floor((wx - baseX) / BR_CELL), gz = Math.floor((wz - baseZ) / BR_CELL);
+                    const rx = ((wx - baseX) % BR_CELL + BR_CELL) % BR_CELL;
+                    const rz = ((wz - baseZ) % BR_CELL + BR_CELL) % BR_CELL;
+                    const { siteCell, openW, openN, hasLamp } = brCellOpen(gx, gz, isL2);
+                    const crimson = isL2 ? (gz <= -5 || ((gx + gz) & 3) === 0) : (gx <= -4 && gz >= 3);
                     const wallId = crimson ? B.BR_REDWALL : B.BR_WALL;
 
                     set(wx, -2, wz, B.STONE);
@@ -3798,18 +3855,13 @@
                     set(wx, 0, wz, B.BR_CARPET);
 
                     // Techo acústico en y = 6 con paneles fluorescentes en el centro de casi cada sala
-                    const hasLamp = siteCell || hash2(gx, gz, 405) > 0.14;
                     const isLamp = hasLamp && (rx === 2 || rx === 3) && (rz === 2 || rz === 3);
                     set(wx, 6, wz, isLamp ? B.BR_LIGHT : B.BR_CEIL);
 
-                    // Conectividad garantizada (árbol binario + bucles): siempre hay paso hacia N o O
-                    const hDir = hash2(gx, gz, 401);
-                    const openW = siteCell || hDir >= 0.5 || hash2(gx, gz, 404) < 0.28;
-                    const openN = siteCell || hDir < 0.5 || hash2(gx, gz, 403) < 0.28;
                     let isWall = false;
                     if (rx === 0 && !(openW && rz >= 2 && rz <= 4)) isWall = true;
                     if (rz === 0 && !(openN && rx >= 2 && rx <= 4)) isWall = true;
-                    if (!siteCell && rx === 3 && rz === 3 && hash2(gx, gz, 402) < 0.22) isWall = true;
+                    if (!siteCell && rx === 1 && rz === 1 && hash2(gx, gz, sd + 2) < 0.16) isWall = true;   // columna esquinera: deja libre el pasillo para flechas
 
                     if (isWall) {
                         for (let y = 1; y <= 5; y++) set(wx, y, wz, wallId);
@@ -3818,7 +3870,9 @@
             }
             const cxm = x0 + CS / 2, czm = z0 + CS / 2;
             for (const s of STORY_SITES) {
-                if (s.type.startsWith('br_') && Math.abs(s.x - cxm) < CS / 2 + 12 && Math.abs(s.z - czm) < CS / 2 + 12) {
+                if (!s.type.startsWith('br_')) continue;
+                if ((s.type === 'br_exit') !== isL2) continue;
+                if (Math.abs(s.x - cxm) < CS / 2 + 12 && Math.abs(s.z - czm) < CS / 2 + 12) {
                     SITE_BUILDERS[s.type](s, set, NOOP_DEC);
                 }
             }
@@ -4086,8 +4140,9 @@
             if (isPocketChunk(chunk.cx, chunk.cz)) return;   // la casa de acampar no lleva lagos, rutas ni lugares
             const owns = (p) => Math.floor(p.x / CS) === chunk.cx && Math.floor(p.z / CS) === chunk.cz;
             if (isBackroomChunk(chunk.cx, chunk.cz)) {
+                const isL2 = isBr2Chunk(chunk.cx, chunk.cz);
                 const api = makeDecorApi(chunk);
-                for (const s of STORY_SITES) if (s.type.startsWith('br_') && owns(s)) SITE_BUILDERS[s.type](s, NOOP_SET, api);
+                for (const s of STORY_SITES) if (s.type.startsWith('br_') && ((s.type === 'br_exit') === isL2) && owns(s)) SITE_BUILDERS[s.type](s, NOOP_SET, api);
                 return;
             }
             buildWaterOverlay(chunk);
@@ -4222,6 +4277,172 @@
             pageObj.group.visible = pageAvailable();   // la página solo existe desde el día en que se revela su ubicación
         }
         placePageObj();
+
+        // --- Puertas interactivas de Los Backrooms (Nivel 1 -> Nivel 2, y Puerta de Salida -> Mundo Principal) ---
+        function makeBrDoorObj(x, z, rotY, frameCol, panelCol, glowCol) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.5, z);
+            group.rotation.y = rotY;
+            const frameMat = new THREE.MeshStandardMaterial({ color: frameCol, roughness: 0.45, metalness: 0.35, emissive: glowCol, emissiveIntensity: 0.22 });
+            const postL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.75, 0.26), frameMat); postL.position.set(-0.74, 1.375, 0);
+            const postR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.75, 0.26), frameMat); postR.position.set(0.74, 1.375, 0);
+            const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.28, 0.3), frameMat); lintel.position.set(0, 2.78, 0);
+            const beaconStrip = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.14, 0.34), new THREE.MeshBasicMaterial({ color: glowCol, fog: false }));
+            beaconStrip.position.set(0, 2.78, 0);
+            const pivot = new THREE.Group();
+            pivot.position.set(-0.62, 0, 0);
+            const panelMat = new THREE.MeshStandardMaterial({ color: panelCol, roughness: 0.5, emissive: glowCol, emissiveIntensity: 0.35 });
+            const panel = new THREE.Mesh(new THREE.BoxGeometry(1.24, 2.55, 0.14), panelMat);
+            panel.position.set(0.62, 1.275, 0);
+            const windowBar = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.42, 0.17), new THREE.MeshBasicMaterial({ color: glowCol, fog: false }));
+            windowBar.position.set(0.62, 1.88, 0);
+            const handle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.24, 0.22), new THREE.MeshStandardMaterial({ color: 0xf4e3a2, metalness: 0.7, roughness: 0.25 }));
+            handle.position.set(1.08, 1.15, 0);
+            pivot.add(panel, windowBar, handle);
+            const aura = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: glowTexture, color: glowCol, transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending, depthWrite: false, fog: false
+            }));
+            aura.scale.set(3.4, 3.4, 1); aura.position.set(0, 1.5, 0);
+            const hit = new THREE.Mesh(new THREE.BoxGeometry(2.1, 2.9, 1.1), new THREE.MeshBasicMaterial({ visible: false }));
+            hit.position.set(0, 1.45, 0);
+            group.add(postL, postR, lintel, beaconStrip, pivot, aura, hit);
+            scene.add(group);
+            return { group, pivot, aura, hit, angle: 0, open: false };
+        }
+        const brDoor1 = makeBrDoorObj(BR1_DOOR_X, BR1_DOOR_Z, 0, 0x3b1214, 0x7c1d1f, 0xffaa33);
+        const brDoor2 = makeBrDoorObj(BR2_DOOR_X, BR2_DOOR_Z, 0, 0x103c22, 0x1e6b3d, 0x4dff99);
+        function updateBrDoors(delta) {
+            const inBr = inBackrooms();
+            brDoor1.group.visible = inBr && activeBrOrigin().level === 1;
+            brDoor2.group.visible = inBr && activeBrOrigin().level === 2;
+            for (const d of [brDoor1, brDoor2]) {
+                if (!d.group.visible) continue;
+                const tgt = d.open ? -1.75 : 0;
+                d.angle += (tgt - d.angle) * Math.min(1, delta * 9);
+                d.pivot.rotation.y = d.angle;
+                d.aura.material.opacity = 0.45 + Math.sin(time * 4.5) * 0.2;
+            }
+        }
+
+        // --- Flechas 3D luminosas en el suelo que indican el camino en Los Backrooms (BFS sobre celdas 6x6) ---
+        const BR_ARROWS_N = 18;
+        const brArrowMat = new THREE.MeshBasicMaterial({ color: 0xffe45e, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, fog: false });
+        const brArrows = [];
+        (function initBrArrows() {
+            const armA = new THREE.BoxGeometry(0.14, 0.025, 0.52);
+            const tailG = new THREE.BoxGeometry(0.12, 0.025, 0.58);
+            for (let i = 0; i < BR_ARROWS_N; i++) {
+                const g = new THREE.Group();
+                const m = brArrowMat.clone();
+                const l = new THREE.Mesh(armA, m); l.position.set(-0.16, 0, -0.14); l.rotation.y = 0.62;
+                const r = new THREE.Mesh(armA, m); r.position.set(0.16, 0, -0.14); r.rotation.y = -0.62;
+                const t = new THREE.Mesh(tailG, m); t.position.set(0, 0, 0.12);
+                g.add(l, r, t);
+                g.visible = false;
+                scene.add(g);
+                brArrows.push({ g, m });
+            }
+        })();
+        let brPathKey = '', brPathCells = [];
+        function clearBackroomArrows() {
+            for (let i = 0; i < brArrows.length; i++) brArrows[i].g.visible = false;
+        }
+        function computeBrPath(sgx, sgz, ggx, ggz, isL2) {
+            const R = 16, W = R * 2 + 1;
+            const clamp = (v) => Math.max(-R, Math.min(R, v));
+            sgx = clamp(sgx); sgz = clamp(sgz); ggx = clamp(ggx); ggz = clamp(ggz);
+            const key = (x, z) => (x + R) * W + (z + R);
+            const prev = new Int32Array(W * W).fill(-1);
+            const seen = new Uint8Array(W * W);
+            const qx = [sgx], qz = [sgz];
+            seen[key(sgx, sgz)] = 1;
+            let head = 0, found = false;
+            const pass = (ax, az, bx, bz) => {
+                if (bx < -R || bx > R || bz < -R || bz > R) return false;
+                if (bx === ax - 1 && bz === az) return brCellOpen(ax, az, isL2).openW;
+                if (bx === ax + 1 && bz === az) return brCellOpen(bx, bz, isL2).openW;
+                if (bx === ax && bz === az - 1) return brCellOpen(ax, az, isL2).openN;
+                if (bx === ax && bz === az + 1) return brCellOpen(bx, bz, isL2).openN;
+                return false;
+            };
+            while (head < qx.length) {
+                const x = qx[head], z = qz[head++];
+                if (x === ggx && z === ggz) { found = true; break; }
+                for (const [dx, dz] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+                    const nx = x + dx, nz = z + dz;
+                    if (nx < -R || nx > R || nz < -R || nz > R) continue;
+                    const k = key(nx, nz);
+                    if (seen[k] || !pass(x, z, nx, nz)) continue;
+                    seen[k] = 1;
+                    prev[k] = key(x, z);
+                    qx.push(nx); qz.push(nz);
+                }
+            }
+            if (!found) return [{ gx: sgx, gz: sgz }, { gx: ggx, gz: ggz }];
+            const out = [];
+            let cur = key(ggx, ggz);
+            while (cur >= 0) {
+                const cz = (cur % W) - R, cx = Math.floor(cur / W) - R;
+                out.push({ gx: cx, gz: cz });
+                if (cx === sgx && cz === sgz) break;
+                cur = prev[cur];
+            }
+            out.reverse();
+            return out;
+        }
+        function updateBackroomArrows() {
+            if (!started || gameEnded || !inBackrooms()) { clearBackroomArrows(); return; }
+            const brInfo = activeBrOrigin(), isL2 = brInfo.level === 2;
+            const baseX = brInfo.x, baseZ = brInfo.z;
+            const pgx = Math.floor((player.position.x - baseX) / BR_CELL);
+            const pgz = Math.floor((player.position.z - baseZ) / BR_CELL);
+            let tx, tz, arrowHex = 0xffe45e;
+            if (isL2) {
+                tx = BR2_DOOR_X; tz = BR2_DOOR_Z; arrowHex = 0x56ff9f;
+            } else if (nextPage < CH1_PAGES + CH2_PAGES + CH3_PAGES + 4 && STORY_SITES[nextPage]) {
+                tx = STORY_SITES[nextPage].x; tz = STORY_SITES[nextPage].z; arrowHex = 0xffe45e;
+            } else {
+                tx = BR1_DOOR_X; tz = BR1_DOOR_Z; arrowHex = 0xffa63a;
+            }
+            const ggx = Math.floor((tx - baseX) / BR_CELL);
+            const ggz = Math.floor((tz - baseZ) / BR_CELL);
+            const key = `${isL2 ? 2 : 1}|${pgx},${pgz}|${ggx},${ggz}`;
+            if (key !== brPathKey) {
+                brPathKey = key;
+                brPathCells = computeBrPath(pgx, pgz, ggx, ggz, isL2);
+            }
+            const pts = [];
+            for (let i = 0; i < brPathCells.length - 1; i++) {
+                const a = brPathCells[i], b = brPathCells[i + 1];
+                const ax = baseX + a.gx * BR_CELL + 3, az = baseZ + a.gz * BR_CELL + 3;
+                const bx = baseX + b.gx * BR_CELL + 3, bz = baseZ + b.gz * BR_CELL + 3;
+                const dx = bx - ax, dz = bz - az;
+                const rotY = Math.atan2(-dx, -dz);
+                pts.push({ x: ax + dx * 0.2, z: az + dz * 0.2, rotY });
+                pts.push({ x: ax + dx * 0.68, z: az + dz * 0.68, rotY });
+            }
+            if (brPathCells.length >= 1) {
+                const last = brPathCells[brPathCells.length - 1];
+                const lx = baseX + last.gx * BR_CELL + 3, lz = baseZ + last.gz * BR_CELL + 3;
+                const dx = tx - lx, dz = tz - lz;
+                if (Math.hypot(dx, dz) > 0.6) {
+                    pts.push({ x: lx + dx * 0.35, z: lz + dz * 0.35, rotY: Math.atan2(-dx, -dz) });
+                }
+            }
+            for (let i = 0; i < brArrows.length; i++) {
+                const ar = brArrows[i];
+                if (i < pts.length) {
+                    const p = pts[i];
+                    ar.g.visible = true;
+                    ar.g.position.set(p.x, 0.535, p.z);
+                    ar.g.rotation.y = p.rotY;
+                    ar.m.color.setHex(arrowHex);
+                    ar.m.opacity = 0.52 + 0.44 * (0.5 + 0.5 * Math.sin(time * 5.2 - i * 0.75));
+                } else {
+                    ar.g.visible = false;
+                }
+            }
+        }
 
         // ============================================================
         // EXTERIOR DE LA CABAÑA: solo adornos por fuera (el interior no se toca)
@@ -5355,7 +5576,13 @@
         });
         function toggleCraft(force) {
             if (!started || gameEnded) return;
-            craftOpen = force === undefined ? !craftOpen : force;
+            const wantOpen = force === undefined ? !craftOpen : force;
+            if (wantOpen && inBackrooms()) {
+                if (craftOpen) toggleCraft(false);
+                toast('EN LOS BACKROOMS NO PUEDES FABRICAR · SOLO EXPLORA Y ESCAPA');
+                return;
+            }
+            craftOpen = wantOpen;
             if (stoveOpen) closeStove();   // la estufa también
             if (guideOpen) { guideOpen = false; setDisplay(guidePanel, 'none'); }   // el Utilitario cuenta como "crafteo abierto"
             setDisplay(craftPanel, craftOpen ? 'flex' : 'none');
@@ -5436,8 +5663,8 @@
                 ['🎣', 'Pesca, agua y balde', `<p><b>Caña</b> (palos + fibra, en la mesa): apunta a un lago y clic dcho. para lanzar. Espera 4-12 s (menos con lluvia); cuando la boya se hunda tienes 1,2 s para volver a pulsar. Cada captura gasta 1 uso (${TOOL_USES.rod}). Botín: 70 % un pez, 18 % dos, 6 % fibra, 6 % un hueso viejo.</p>
                     <p><b>Balde</b> (tablas + fibra): llénalo apuntando al agua; vierte con clic dcho. para regar parcelas o apagar llamas colocadas.</p>
                     <p><b>Nadar:</b> el centro de los lagos es profundo; la orilla es somera. Espacio sube, Shift baja, y avanzar mirando arriba o abajo te hace bucear. Salta desde la superficie para salir a la orilla. La criatura no entra en el agua.</p>`],
-                ['📜', 'Historia y páginas', `<p>Hay <b>${CH1_PAGES} páginas</b> del diario de Elías. Cada una <b>solo aparece el día en que el diario revela su ubicación</b>: ${revs}. Hasta ese día no existe en el mundo; el objetivo te dice cuándo se revela la siguiente (duerme o espera al amanecer). Al ganar puedes elegir <b>Continuar · Capítulo 2</b> (5 fragmentos sobre Aldric Voss), el <b>Capítulo 3</b> (5 fragmentos de la fractura del Ciervo Hueco, cuyo final te arrastra fuera de la realidad) y el <b>Capítulo 4 · Los Backrooms</b> (5 notas en el Nivel 0 hasta la Puerta Verde).</p>
-                    <p>Los primeros ${GUIDE_DAY - 1} días solo hay pistas del lugar. Desde el día ${GUIDE_DAY} el diario muestra el rumbo, la distancia y las coordenadas, y un haz rojo marca cada página. En los Backrooms las luces fluorescentes del techo protegen tu cordura, pero el monstruo patrulla los pasillos amarillos.</p>
+                ['📜', 'Historia y páginas', `<p>Hay <b>${CH1_PAGES} páginas</b> del diario de Elías. Cada una <b>solo aparece el día en que el diario revela su ubicación</b>: ${revs}. Hasta ese día no existe en el mundo; el objetivo te dice cuándo se revela la siguiente (duerme o espera al amanecer). Al ganar puedes elegir <b>Continuar · Capítulo 2</b> (5 fragmentos sobre Aldric Voss), el <b>Capítulo 3</b> (5 fragmentos de la fractura del Ciervo Hueco, cuyo final te arrastra fuera de la realidad) y el <b>Capítulo 4 · Los Backrooms</b> (Nivel 1 de exploración sin monstruo, sin crafteo ni hambre, con flechas luminosas hasta la puerta del Nivel 2, donde escapas del monstruo hacia la Puerta de Salida para volver al mundo principal).</p>
+                    <p>Los primeros ${GUIDE_DAY - 1} días solo hay pistas del lugar. Desde el día ${GUIDE_DAY} el diario muestra el rumbo, la distancia y las coordenadas, y un haz rojo marca cada página. En los Backrooms las luces fluorescentes protegen tu cordura y las flechas del suelo marcan el camino.</p>
                     <p><b>Objetivo actual:</b> ${ui.objective._t || 'ninguno'}<br><small>El letrero del objetivo se oculta solo a los ${OBJ_SHOW_MS / 1000} s; la tecla O lo muestra otra vez.</small></p>`]
             ];
             return S.map(([ic, t, b], i) => gdDet(ic, t, b, i === 0)).join('');
@@ -5668,25 +5895,27 @@
                 push('c3', '🔒', 'Capítulo 3 · La Fractura del Ciervo', 'bloqueado', `<p>Completa el Capítulo 2 para continuar cuando el Ciervo Hueco descubre su identidad, oscurece el bosque y fractura la realidad.</p>`, false);
             }
 
-            // Capítulo 4: Los Backrooms (Nivel 0)
+            // Capítulo 4: Los Backrooms (Nivel 1 y Nivel 2)
             if (chapter >= 4) {
                 if (EPILOGUE3) push('c4', '💥', 'El Noclip · Fin del Capítulo 3', 'completado ✅', `<div class="gd-quote">${EPILOGUE3}</div>`, false);
+                if (backroomsEscaped && EPILOGUE4) push('c4', '🚪', 'Regreso al mundo principal', 'completado ✅', `<div class="gd-quote">${EPILOGUE4}</div>`, true);
                 for (let i = CH1_PAGES + CH2_PAGES + CH3_PAGES; i < TOTAL_PAGES; i++) {
                     const got = i < nextPage;
                     const st = STORY_SITES[i];
                     const shown = daysPlayed >= PAGE_REVEAL_DAYS[i];
                     const num = i - CH1_PAGES - CH2_PAGES - CH3_PAGES + 1;
+                    const lvTag = i < CH1_PAGES + CH2_PAGES + CH3_PAGES + 4 ? `Nivel 1 · ${num}/4` : 'Nivel 2 · Salida';
                     if (got) {
                         const body = `<div class="gd-quote">${STORY[i].text}</div><small>📍 Encontrada en: ${st.name}</small><button type="button" class="gd-story-btn" data-read-page="${i}">📜 Ver en nota grande</button>`;
-                        push('c4', '🟨', `Nivel 0 · ${num}/${CH4_PAGES} · ${STORY[i].title}`, 'recogida ✅', body, i === nextPage - 1);
+                        push('c4', '🟨', `${lvTag} · ${STORY[i].title}`, 'recogida ✅', body, !backroomsEscaped && i === nextPage - 1);
                     } else if (shown) {
-                        push('c4', '💡', `Nivel 0 · ${num}/${CH4_PAGES} · Por recoger`, `revelado · ${st.name}`, `<p><b>Pista:</b> ${SITE_CLUES[st.type]}.</p><small>📍 Coordenadas: X ${st.x} · Z ${st.z}</small>`, i === nextPage);
+                        push('c4', '💡', `${lvTag} · Por recoger`, `revelado · ${st.name}`, `<p><b>Pista:</b> ${SITE_CLUES[st.type]}.</p><small>📍 Coordenadas: X ${st.x} · Z ${st.z}</small>`, i === nextPage);
                     } else {
-                        push('c4', '❓', `Nivel 0 · ${num}/${CH4_PAGES} · Sin revelar`, `día ${PAGE_REVEAL_DAYS[i]}`, `<p>Esta nota se revelará en el <b>día ${PAGE_REVEAL_DAYS[i]}</b>.</p>`, false);
+                        push('c4', '❓', `${lvTag} · Sin revelar`, `día ${PAGE_REVEAL_DAYS[i]}`, `<p>Esta nota se revelará en el <b>día ${PAGE_REVEAL_DAYS[i]}</b>.</p>`, false);
                     }
                 }
             } else {
-                push('c4', '🔒', 'Capítulo 4 · Los Backrooms (Nivel 0)', 'bloqueado', `<p>Al llegar al Núcleo del Ciervo en el Capítulo 3 serás arrastrado fuera de la realidad hacia los pasillos amarillos del Nivel 0.</p>`, false);
+                push('c4', '🔒', 'Capítulo 4 · Los Backrooms (Niveles 1 y 2)', 'bloqueado', `<p>Al llegar al Núcleo del Ciervo en el Capítulo 3 serás arrastrado fuera de la realidad hacia los Backrooms: explora el Nivel 1 siguiendo las flechas y huye del monstruo en el Nivel 2 hasta la Puerta Verde de regreso.</p>`, false);
             }
 
             // Notas y relatos encontrados
@@ -5725,10 +5954,20 @@
         function toggleGuide(force) {
             if (!started || gameEnded) return;
             const open = force === undefined ? !guideOpen : force;
-            if (!open) { if (guideOpen) toggleCraft(false); return; }   // toggleCraft(false) también oculta la guía
-            if (!craftOpen) toggleCraft(true);
-            setDisplay(craftPanel, 'none'); if (stoveOpen) closeStove();
-            guideOpen = true; setDisplay(guidePanel, 'flex'); renderGuide(); playSound('click');
+            if (!open && !guideOpen) return;
+            guideOpen = open;
+            if (guideOpen) {
+                mining = false;
+                if (craftOpen) { craftOpen = false; crafting = null; $('craft-prog-fill').style.width = '0'; setDisplay(craftPanel, 'none'); }
+                if (stoveOpen) closeStove();
+                if (pickerOpen) closePicker(true);
+                closeChest(true);
+                setDisplay(guidePanel, 'flex'); renderGuide(); playSound('click');
+                if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+            } else {
+                setDisplay(guidePanel, 'none');
+                if (!IS_MOBILE) tryLock();
+            }
         }
         $('guide-tabs').addEventListener('click', (e) => { const b = e.target.closest('.gtab'); if (!b) return; guideTab = b.dataset.g; guideQuery = ''; playSound('click'); renderGuide(); });
         $('guide-tools').addEventListener('click', (e) => {
@@ -5743,7 +5982,10 @@
             const id = +btn.dataset.readPage;
             if (STORY[id]) { toggleGuide(false); showNote(id); playSound('pagePickup'); }
         });
-        $('guide-recipes').addEventListener('click', () => { guideOpen = false; setDisplay(guidePanel, 'none'); craftOpen = false; toggleCraft(true); });
+        $('guide-recipes').addEventListener('click', () => {
+            if (inBackrooms()) { toast('EN LOS BACKROOMS NO PUEDES FABRICAR'); return; }
+            guideOpen = false; setDisplay(guidePanel, 'none'); craftOpen = false; toggleCraft(true);
+        });
         $('guide-close').addEventListener('click', () => toggleGuide(false));
         $('craft-guide').addEventListener('click', () => toggleGuide(true));
 
@@ -5998,7 +6240,7 @@
                 wasLocked = true;
                 paused = false;
                 setDisplay(ui.pause, 'none');
-            } else if (wasLocked && started && !gameEnded && !craftOpen && !chestOpen && !pickerOpen && !chatOpen) {
+            } else if (wasLocked && started && !gameEnded && !craftOpen && !guideOpen && !chestOpen && !pickerOpen && !chatOpen) {
                 paused = true;
                 clearInputs();
                 setDisplay(ui.pause, 'flex');
@@ -6616,7 +6858,9 @@
                 ui.dayCount.classList.remove('hud-corrupt');
             }
             document.body.classList.toggle('ch3-dark', chapter === 3 && started && !gameEnded && !inBackrooms());
-            document.body.classList.toggle('ch4-backrooms', chapter >= 4 && started && !gameEnded && inBackrooms());
+            const inBrClear = chapter >= 4 && started && !gameEnded && inBackrooms();
+            document.body.classList.toggle('ch4-backrooms', inBrClear);
+            document.body.classList.toggle('ch4-level2', inBrClear && activeBrOrigin().level === 2);
         }
         function updateChapter3FX(delta) {
             if (chapter < 3 || !started || gameEnded || scare.active || sleepCine.active) {
@@ -6626,6 +6870,7 @@
             const inBr = inBackrooms();
             document.body.classList.toggle('ch3-dark', !inBr);
             document.body.classList.toggle('ch4-backrooms', inBr);
+            document.body.classList.toggle('ch4-level2', inBr && activeBrOrigin().level === 2);
 
             // Brechas de realidad diurnas: en Cap. 3 el monstruo sabe quién eres y puede cruzar incluso de día
             if (inBr) {
@@ -6790,28 +7035,29 @@
                     if (fogGain) fogGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.4);
                     if (backroomGain) backroomGain.gain.setTargetAtTime(started && !gameEnded ? 0.075 : 0, audioCtx.currentTime, 0.45);
                 }
-                const gx = Math.floor((player.position.x - BKX) / BR_CELL);
-                const gz = Math.floor((player.position.z - BKZ) / BR_CELL);
-                const crimson = gx <= -4 && gz >= 3;
-                scene.background.setHex(crimson ? 0x220709 : 0x2b2511);
+                const brInfo = activeBrOrigin();
+                const brBaseX = brInfo.x, brBaseZ = brInfo.z, isL2 = brInfo.level === 2;
+                const gx = Math.floor((player.position.x - brBaseX) / BR_CELL);
+                const gz = Math.floor((player.position.z - brBaseZ) / BR_CELL);
+                const crimson = isL2 ? (gz <= -5 || ((gx + gz) & 3) === 0) : (gx <= -4 && gz >= 3);
+                scene.background.setHex(isL2 ? (crimson ? 0x260609 : 0x24160d) : (crimson ? 0x220709 : 0x2b2511));
                 scene.fog.color.copy(scene.background);
-                scene.fog.density = 0.068 * FOG_SCALE;
+                scene.fog.density = (isL2 ? 0.072 : 0.064) * FOG_SCALE;
                 sunLight.shadow.autoUpdate = false;
                 moonLight.shadow.autoUpdate = false;
                 sunLight.intensity = 0;
                 moonLight.intensity = 0;
-                ambientLight.intensity = crimson ? 0.28 : 0.42;
-                hemisphereLight.intensity = crimson ? 0.16 : 0.26;
+                ambientLight.intensity = isL2 ? 0.30 : (crimson ? 0.32 : 0.44);
+                hemisphereLight.intensity = isL2 ? 0.18 : (crimson ? 0.18 : 0.28);
 
                 // Luces fluorescentes del techo más cercanas al jugador
                 const cand = [];
                 for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
                     const cx = gx + dx, cz = gz + dz;
-                    const key = cx + ',' + cz;
-                    if (!BR_SITE_CELLS.has(key) && hash2(cx, cz, 405) <= 0.14) continue;
-                    const lx = BKX + cx * BR_CELL + 3, lz = BKZ + cz * BR_CELL + 3;
+                    if (!brCellOpen(cx, cz, isL2).hasLamp) continue;
+                    const lx = brBaseX + cx * BR_CELL + 3, lz = brBaseZ + cz * BR_CELL + 3;
                     const d2 = (lx - player.position.x) * (lx - player.position.x) + (lz - player.position.z) * (lz - player.position.z);
-                    cand.push({ lx, lz, d2, h: hash2(cx, cz, 409) });
+                    cand.push({ lx, lz, d2, h: hash2(cx, cz, isL2 ? 709 : 409) });
                 }
                 cand.sort((a, b) => a.d2 - b.d2);
                 for (let i = 0; i < backroomLights.length; i++) {
@@ -6819,42 +7065,49 @@
                     if (i < cand.length) {
                         const c = cand[i];
                         const flick = Math.sin(time * (19 + i * 7) + c.h * 20) > 0.94 ? 0.42 : (0.94 + Math.sin(time * 40 + c.h * 9) * 0.06);
-                        bl.color.setHex(crimson ? 0xff8e8e : 0xfff1a8);
+                        bl.color.setHex(isL2 ? 0xff9478 : (crimson ? 0xff8e8e : 0xfff1a8));
                         bl.position.set(c.lx, 5.2, c.lz);
-                        bl.intensity = (crimson ? 0.95 : 1.35) * flick;
+                        bl.intensity = (isL2 ? 1.05 : (crimson ? 1.0 : 1.35)) * flick;
                     } else {
                         bl.intensity = 0;
                     }
                 }
 
-                const brCollected = Math.max(0, nextPage - (CH1_PAGES + CH2_PAGES + CH3_PAGES));
-                setText(ui.time, `NIVEL 0 · ${crimson ? 'SECTOR CARMESÍ' : 'LOS BACKROOMS'} (${brCollected}/${CH4_PAGES})`);
-                setColor(ui.time, crimson ? '#ff5e6c' : '#f3e072');
+                if (!isL2) {
+                    const l1Done = Math.min(4, Math.max(0, nextPage - (CH1_PAGES + CH2_PAGES + CH3_PAGES)));
+                    setText(ui.time, `NIVEL 1 · EXPLORACIÓN (${l1Done}/4)`);
+                    setColor(ui.time, crimson ? '#ff9d5c' : '#f3e072');
+                    if (monster.body.visible) { monster.body.visible = false; monster.aura.intensity = 0; }
+                    return;
+                }
+
+                setText(ui.time, 'NIVEL 2 · ¡ESCAPA A LA SALIDA!');
+                setColor(ui.time, '#ff5e6c');
 
                 if (brGraceT > 0) brGraceT = Math.max(0, brGraceT - delta);
                 if (started && !gameEnded && !inTent && brGraceT <= 0 && !monster.body.visible && !ch3Trap.active) {
-                    let sx = BKX_SPAWN, sz = BKZ_SPAWN, found = false;
-                    for (let tries = 0; tries < 24; tries++) {
-                        const ang = (tries / 24) * Math.PI * 2 + Math.random() * 0.4;
+                    let sx = BKX2_SPAWN, sz = BKZ2_SPAWN, found = false;
+                    for (let tries = 0; tries < 28; tries++) {
+                        const ang = (tries / 28) * Math.PI * 2 + Math.random() * 0.4;
                         const distCells = 3 + (tries % 2);
                         const cgx = gx + Math.round(Math.cos(ang) * distCells);
                         const cgz = gz + Math.round(Math.sin(ang) * distCells);
-                        const tx = BKX + cgx * BR_CELL + 3, tz = BKZ + cgz * BR_CELL + 3;
-                        if (Math.hypot(tx - player.position.x, tz - player.position.z) < 12) continue;
+                        const tx = brBaseX + cgx * BR_CELL + 3, tz = brBaseZ + cgz * BR_CELL + 3;
+                        if (Math.hypot(tx - player.position.x, tz - player.position.z) < 14) continue;
                         if (!chunks.has(chunkKey(Math.round(tx) >> 4, Math.round(tz) >> 4))) continue;
                         if (!monsterBlockedAt(tx, tz)) { sx = tx; sz = tz; found = true; break; }
                     }
                     if (found) {
                         monster.position.set(sx, 0.5, sz);
                         monster.body.visible = true;
-                        monster.aura.intensity = 2.4;
-                        monsterState = 'stalk';
-                        monsterStateTimer = 4.5;
+                        monster.aura.intensity = 2.6;
+                        monsterState = 'chase';
+                        monsterStateTimer = 99;
                         monsterAtDoor = false;
                         monsterStunned = false;
                         resetMonsterAI();
-                        playSound('distantBellow', 0.65);
-                        toast('ALGO CAMINA POR LOS PASILLOS...');
+                        playSound('monsterScream', 0.75);
+                        toast('⚠ NIVEL 2 · ¡EL MONSTRUO TE PERSIGUE! SIGUE LAS FLECHAS HASTA LA PUERTA VERDE');
                     }
                 }
                 return;
@@ -7307,7 +7560,7 @@
             if (pendingReveal && !finalNight && !inBackrooms() && noteTimer <= 0 && !pendingGuide) { const rd = pendingReveal; pendingReveal = 0; if (nextPage < TOTAL_PAGES && pageAvailable()) showReveal(rd); }
             if (nextPage < TOTAL_PAGES && pageObj.group.visible !== pageAvailable()) placePageObj();   // la página aparece sola al llegar su día
             updateStoryProps();
-            pageObj.beam.visible = storyGuideOn();   // sin el haz rojo (que se ve de lejos) hasta que pasen los cinco días
+            pageObj.beam.visible = storyGuideOn() || inBackrooms();
             if (finalChase && checkSafeZone()) { finalChase = false; toast('¡A SALVO! RESISTE HASTA EL AMANECER'); playSound('discover'); }
             if (ch3Trap.active) {
                 txt = '🩸 ¡EL NÚCLEO SE CIERRA! · ¡NO HAY ESCAPE!';
@@ -7317,6 +7570,10 @@
                                                  : (chapter === 2 ? `🌑 RESISTE HASTA EL AMANECER Y DI SU NOMBRE: ALDRIC VOSS · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s` : `🌑 SOBREVIVE HASTA EL AMANECER · ${Math.max(0, Math.ceil(TOTAL_CYCLE - dayTime))} s`));
             } else if (inTent) {
                 txt = isNight ? (dayTime < SLEEP_FROM_T ? `⛺ ESTÁS A SALVO · PODRÁS DORMIR DESDE LAS ${SLEEP_FROM_HOUR}:00` : '⛺ ESTÁS A SALVO · DUERME EN EL SACO (E) HASTA EL AMANECER') : '⛺ CASA DE ACAMPAR · COLOCA COSAS A TU GUSTO · SAL POR LA PUERTA DE LONA (E)';
+            } else if (inBackrooms() && activeBrOrigin().level === 2) {
+                txt = `🚨 NIVEL 2 · ¡ESCAPA DEL MONSTRUO HASTA LA PUERTA DE SALIDA! · ${arrowTo(BR2_DOOR_X, BR2_DOOR_Z)}`;
+            } else if (inBackrooms() && nextPage >= CH1_PAGES + CH2_PAGES + CH3_PAGES + 4) {
+                txt = `🚪 PUERTA AL NIVEL 2 (SECTOR CARMESÍ) · SIGUE LAS FLECHAS · ${arrowTo(BR1_DOOR_X, BR1_DOOR_Z)}`;
             } else if (nextPage < TOTAL_PAGES) {
                 const s = STORY_SITES[nextPage];
                 const icon = inBackrooms() ? '🟨' : '📜';
@@ -7326,7 +7583,7 @@
             }
             setText(ui.objective, txt);
             // El letrero del objetivo solo se ve 10 s cada vez que cambia (más pantalla libre); tecla O para verlo otra vez
-            const okey = ch3Trap.active ? 'trap' : (finalNight ? (finalChase ? 'chase' : 'final') : `${nextPage}|${pageAvailable()}|${storyGuideOn()}|${inBackrooms() ? 1 : 0}`), now = performance.now();
+            const okey = ch3Trap.active ? 'trap' : (finalNight ? (finalChase ? 'chase' : 'final') : `${nextPage}|${pageAvailable()}|${storyGuideOn()}|${inBackrooms() ? activeBrOrigin().level : 0}`), now = performance.now();
             if (!started) objKey = '';
             else if (okey !== objKey) { objKey = okey; objUntil = now + OBJ_SHOW_MS; }
             setDisplay(ui.objective, (txt && now < objUntil) ? 'flex' : 'none');
@@ -7339,11 +7596,20 @@
             updateInventoryHUD();
             playSound('pagePickup');
             glitchPulse = Math.max(glitchPulse, chapter >= 3 ? 0.75 : 0.35); setTimeout(() => playSound('whisper', chapter >= 3 ? 0.8 : 0.5), 700);   // el bosque reacciona
-            showNote(id);
+            if (!(chapter === 4 && nextPage >= TOTAL_PAGES)) showNote(id);
             placePageObj();
+            if (chapter === 4) {
+                if (id === CH1_PAGES + CH2_PAGES + CH3_PAGES + 3) {
+                    setTimeout(() => toast('🚪 ¡4/4 NOTAS RECOGIDAS! ABRE LA PUERTA DEL SECTOR CARMESÍ AL NIVEL 2'), 1200);
+                }
+                if (nextPage >= TOTAL_PAGES) {
+                    hideNote();
+                    toast('🚪 ¡PUERTA DE SALIDA DESBLOQUEADA! PULSA E PARA VOLVER AL BOSQUE');
+                }
+                return;
+            }
             if (nextPage < TOTAL_PAGES && !pageAvailable()) setTimeout(() => toast(`LA SIGUIENTE UBICACIÓN SE REVELA EL DÍA ${PAGE_REVEAL_DAYS[nextPage]}`), 3500);
             if (nextPage >= TOTAL_PAGES) {
-                if (chapter === 4) { triggerVictory(); return; }
                 if (chapter === 3) { startCh3FinalTrap(); return; }
                 startFinalNight();
             }
@@ -7476,10 +7742,12 @@
             beginChapter3(false);
             if (!IS_MOBILE) tryLock();
         }
-        // Capítulo 4: Los Backrooms (Nivel 0) · tras morir en el Núcleo del Capítulo 3 o mediante el código secreto /ch@pter-4s
+        // Capítulo 4: Los Backrooms · Nivel 1 (exploración segura) y Nivel 2 (huida del monstruo hasta la salida al mundo principal)
         function beginChapter4(skipped) {
             gameEnded = false;
             chapter = 4;
+            brLevel = 1;
+            backroomsEscaped = false;
             TOTAL_PAGES = CH1_PAGES + CH2_PAGES + CH3_PAGES + CH4_PAGES;
             if (nextPage < CH1_PAGES + CH2_PAGES + CH3_PAGES) nextPage = CH1_PAGES + CH2_PAGES + CH3_PAGES;
             inventory.pages = nextPage;
@@ -7489,18 +7757,22 @@
             pendingGuide = false; pendingOmen = 0; pendingReveal = 0;
             inTent = false; tentFrom = null; tentFx.state = 'idle'; tentFadeEl.style.opacity = 0; tentLight.intensity = 0;
             objKey = '';
-            closeChest(true); if (craftOpen) toggleCraft(false); closePicker(true); if (stoveOpen) closeStove(); hideNote();
+            closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false); closePicker(true); if (stoveOpen) closeStove(); hideNote();
             clearDrops();
             for (let i = animals.length - 1; i >= 0; i--) removeAnimal(i);
             resetMonsterAI(); clearTraces(); endIllusion();
             monster.body.visible = false; monster.aura.intensity = 0; monster.position.set(BKX + 30, -10, BKZ + 30);
             vigia.visible = false; VG.state = 'none';
-            brGraceT = 14;
+            brGraceT = 0;
+            brDoor1.open = false; brDoor1.angle = 0; brDoor1.pivot.rotation.y = 0;
+            brDoor2.open = false; brDoor2.angle = 0; brDoor2.pivot.rotation.y = 0;
+            brPathKey = '';
 
             player.position.set(BKX_SPAWN, 2.6, BKZ_SPAWN);
             player.velocity.set(0, 0, 0);
             player.onGround = false;
-            player.sanity = Math.max(player.sanity, 78);
+            player.sanity = 100;
+            player.hunger = 100;
             yaw = 0; pitch = 0; lastYaw = 0; lastPitch = 0;
 
             clearAllChunks();
@@ -7509,6 +7781,9 @@
             updateInventoryHUD();
             updateDayNightCycle(0);
             clearCh3FX();
+            updateObjective();
+            updateBrDoors(0);
+            updateBackroomArrows();
             playSound('noclip', 1);
             glitchPulse = 1;
 
@@ -7516,18 +7791,106 @@
             startWakeUp({
                 pose: 'blink',
                 dur: 3.4,
-                big: 'CAPÍTULO 4 · LOS BACKROOMS',
+                big: 'CAPÍTULO 4 · BACKROOMS NIVEL 1',
                 small: skipped ? 'Salto forzado fuera de la realidad...' : 'Caíste fuera de la realidad...',
-                msg: 'NIVEL 0 · BUSCA LAS 5 NOTAS Y LA PUERTA VERDE'
+                msg: 'EXPLORA EL NIVEL 1 SIN MONSTRUO · SIGUE LAS FLECHAS'
             });
             setTimeout(() => {
-                if (!started || gameEnded || chapter < 4) return;
-                setText(ui.noteTitle, 'CAPÍTULO 4 · LOS BACKROOMS (NIVEL 0)');
-                setText(ui.noteText, (skipped ? 'Saltas directo al capítulo 4. ' : 'El Ciervo Hueco te desgarró en el Núcleo... y el impacto rompió el suelo del mundo. ') + 'Despiertas en un laberinto interminable de alfombra húmeda, papel amarillo y zumbido fluorescente. Busca las 5 notas del Nivel 0 hasta la Puerta Verde de salida. Las lámparas del techo protegen tu cordura, pero el monstruo ya camina por estos pasillos.');
+                if (!started || gameEnded || chapter < 4 || backroomsEscaped) return;
+                setText(ui.noteTitle, 'LOS BACKROOMS · NIVEL 1 (EXPLORACIÓN)');
+                setText(ui.noteText, (skipped ? 'Saltas directo al capítulo 4. ' : 'El Ciervo Hueco te desgarró en el Núcleo... y el golpe partió el suelo del mundo. ') + 'En este primer nivel no hay monstruo, ni barra de comida ni crafteo: solo explora las salas siguiendo las flechas del suelo para recoger las 4 notas y abrir la puerta al Nivel 2 (el nivel de escape).');
                 setDisplay(ui.note, 'block');
                 noteTimer = 28;
                 playSound('pagePickup');
             }, 3500);
+        }
+        function enterBackroomsLevel2() {
+            brLevel = 2;
+            brGraceT = 1.6;
+            brDoor1.open = true;
+            brDoor2.open = false; brDoor2.angle = 0; brDoor2.pivot.rotation.y = 0;
+            brPathKey = '';
+            objKey = '';
+            closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false); closePicker(true); if (stoveOpen) closeStove(); hideNote();
+            resetMonsterAI(); clearTraces(); endIllusion();
+            monster.body.visible = false; monster.aura.intensity = 0; monster.position.set(BKX2 + 30, -10, BKZ2 + 30);
+
+            player.position.set(BKX2_SPAWN, 2.6, BKZ2_SPAWN);
+            player.velocity.set(0, 0, 0);
+            player.onGround = false;
+            player.sanity = Math.max(player.sanity, 85);
+            player.hunger = 100;
+            yaw = 0; pitch = 0; lastYaw = 0; lastPitch = 0;
+
+            clearAllChunks();
+            streamChunks(BKX2_SPAWN, BKZ2_SPAWN, 1e9);
+            placePageObj();
+            updateDayNightCycle(0);
+            clearCh3FX();
+            updateObjective();
+            updateBrDoors(0);
+            updateBackroomArrows();
+            playSound('noclip', 1);
+            glitchPulse = 1;
+
+            if (sleepCine.active) sleepCine.active = false;
+            startWakeUp({
+                pose: 'blink',
+                dur: 2.6,
+                big: 'BACKROOMS · NIVEL 2',
+                small: '¡El monstruo ya está aquí! Escapa hasta la salida...',
+                msg: 'CORRE POR LAS FLECHAS HASTA LA PUERTA VERDE'
+            });
+        }
+        function exitBackroomsToMainWorld() {
+            backroomsEscaped = true;
+            brGraceT = 0;
+            ch3DayHunt = 0; ch3Trap.active = false;
+            finalNight = false; finalChase = false;
+            brDoor2.open = true;
+            clearBackroomArrows();
+            resetMonsterAI(); clearTraces(); endIllusion();
+            monster.body.visible = false; monster.aura.intensity = 0; monster.position.copy(MONSTER_START);
+            if (backroomGain && audioCtx) backroomGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.25);
+            for (let i = 0; i < backroomLights.length; i++) backroomLights[i].intensity = 0;
+
+            dayTime = 18;
+            isNight = false;
+            weather = 'sunny'; wxCloud = wxRain = wxFog = 0;
+            player.sanity = 100; player.hunger = 100;
+            hungerWarned = starveWarned = false;
+            player.position.set(0, 2.6, 5.5);
+            player.velocity.set(0, 0, 0);
+            player.onGround = false;
+            yaw = Math.PI; pitch = 0; lastYaw = yaw; lastPitch = 0;
+
+            clearAllChunks();
+            streamChunks(0, 5.5, 1e9);
+            objKey = '';
+            updateInventoryHUD();
+            placePageObj();
+            updateDayNightCycle(0);
+            clearCh3FX();
+            updateBrDoors(0);
+            updateObjective();
+            playSound('discover');
+
+            if (sleepCine.active) sleepCine.active = false;
+            startWakeUp({
+                pose: 'blink',
+                dur: 3.0,
+                big: 'MUNDO PRINCIPAL',
+                small: 'Regresaste sano y salvo al bosque...',
+                msg: '¡ESCAPASTE DE LOS BACKROOMS Y VOLVISTE AL BOSQUE!'
+            });
+            setTimeout(() => {
+                if (!started || gameEnded) return;
+                setText(ui.noteTitle, '¡ESCAPASTE DE LOS BACKROOMS!');
+                setText(ui.noteText, EPILOGUE4);
+                setDisplay(ui.note, 'block');
+                noteTimer = 24;
+                playSound('pagePickup');
+            }, 3100);
         }
         function startChapter4() {
             gameEnded = false; wasLocked = false;
@@ -8430,6 +8793,10 @@
             if (ch3Trap.active) return;
             const ch3 = chapter >= 3;
             const inBr = inBackrooms();
+            if (inBr && activeBrOrigin().level !== 2) {
+                if (monster.body.visible) { monster.body.visible = false; monster.aura.intensity = 0; }
+                return;
+            }
             const huntActive = inBr || isNight || (ch3 && ch3DayHunt > 0);
             if (gameEnded || !huntActive || (!inBr && isNight && monsterFreeNight())) return;
             nightClock += delta;
@@ -8486,35 +8853,40 @@
                 spawnBurst(mx, 2.25, mz, ashCol, 1, 0.6, 0.9);
             }
 
-            // --- Emboscada: un susurro y un latido avisan; en Cap. 3 embosca con mucha más frecuencia ---
-            ambushCD -= delta;
-            if (ambushWarn > 0) {
-                ambushWarn -= delta;
-                if (ambushWarn <= 0) {
-                    ambushCD = ch3
-                        ? (finalNight ? 10 + Math.random() * 6 : 13 + Math.random() * 7)
-                        : (finalNight ? 18 + Math.random() * 8 : 26 + Math.random() * 14);
-                    if (!checkSafeZone() && !nearFire(px, pz, 9) && tryAmbush(px, pz)) {
-                        monsterState = 'reveal'; revealTimer = ch3 ? 0.55 : 0.9; coverTarget = null;
-                        monster.rotation.y = Math.atan2(px - monster.position.x, pz - monster.position.z);
-                        playSound('growl', 1.15); playSound('distantBellow', 0.9); glitchPulse = Math.max(glitchPulse, 0.85);
-                        if (ch3) { ch3TearT = 0.45; playSound('glitchTear', 0.9); }
-                        animateMonster(delta, 0, 'reveal');
-                        return;
+            // --- Emboscada: un susurro y un latido avisan; en Cap. 3 embosca con mucha más frecuencia (en Nivel 2 solo persigue desde atrás) ---
+            if (!inBr) {
+                ambushCD -= delta;
+                if (ambushWarn > 0) {
+                    ambushWarn -= delta;
+                    if (ambushWarn <= 0) {
+                        ambushCD = ch3
+                            ? (finalNight ? 10 + Math.random() * 6 : 13 + Math.random() * 7)
+                            : (finalNight ? 18 + Math.random() * 8 : 26 + Math.random() * 14);
+                        if (!checkSafeZone() && !nearFire(px, pz, 9) && tryAmbush(px, pz)) {
+                            monsterState = 'reveal'; revealTimer = ch3 ? 0.55 : 0.9; coverTarget = null;
+                            monster.rotation.y = Math.atan2(px - monster.position.x, pz - monster.position.z);
+                            playSound('growl', 1.15); playSound('distantBellow', 0.9); glitchPulse = Math.max(glitchPulse, 0.85);
+                            if (ch3) { ch3TearT = 0.45; playSound('glitchTear', 0.9); }
+                            animateMonster(delta, 0, 'reveal');
+                            return;
+                        }
                     }
-                }
-            } else if (ambushCD <= 0 && (nightClock > (ch3 ? 6 : 14)) && distP > (ch3 ? 13 : 16) && !playerInside && monsterState !== 'retreat' && !nearFire(px, pz, 9)) {
-                if (Math.random() < delta * (ch3 ? 0.85 : 0.5)) {
-                    ambushWarn = ch3 ? 1.0 : 1.5;
-                    playSound('whisper', 1); playSound('heartbeat', 1);
-                    if (ch3) playSound('glitchTear', 0.6);
-                    glitchPulse = Math.max(glitchPulse, 0.65);
+                } else if (ambushCD <= 0 && (nightClock > (ch3 ? 6 : 14)) && distP > (ch3 ? 13 : 16) && !playerInside && monsterState !== 'retreat' && !nearFire(px, pz, 9)) {
+                    if (Math.random() < delta * (ch3 ? 0.85 : 0.5)) {
+                        ambushWarn = ch3 ? 1.0 : 1.5;
+                        playSound('whisper', 1); playSound('heartbeat', 1);
+                        if (ch3) playSound('glitchTear', 0.6);
+                        glitchPulse = Math.max(glitchPulse, 0.65);
+                    }
                 }
             }
 
             // --- Máquina de estados ---
             monsterStateTimer -= delta;
             coverCD -= delta;
+            if (inBr && monsterState !== 'chase' && monsterState !== 'roar' && monsterState !== 'retreat') {
+                monsterState = 'chase'; monsterStateTimer = 99;
+            }
             const S = monsterState;
             if (S === 'retreat') {
                 if (monsterStateTimer <= 0) { monsterState = ch3 ? 'chase' : 'stalk'; monsterStateTimer = ch3 ? 99 : 6 + Math.random() * 4; coverTarget = null; seenTimer = 0; }
@@ -8618,13 +8990,16 @@
                 case 'retreat': speed = ch3 ? 5.0 : 4.2; break;
                 default:
                     speed = inBr
-                        ? 5.35
+                        ? 5.1
                         : (ch3
                             ? (finalChase ? 6.2 + THREE.MathUtils.clamp((distP - 12) * 0.16, 0, 1.3) : (finalNight ? 5.95 : 5.65))
                             : (finalChase ? 5.7 + THREE.MathUtils.clamp((distP - 12) * 0.15, 0, 1.2) : (finalNight ? 5.5 : 5.0)));   // en la huida final no se rinde: acelera si te alejas
                     lungeTimer -= delta;
-                    if (lungeLeft > 0) { lungeLeft -= delta; speed = inBr ? 7.4 : (ch3 ? 8.0 : 7.2); }
-                    else if (lungeTimer <= 0 && distP < (ch3 ? 13 : 11) && !playerInside) { lungeLeft = ch3 ? 1.05 : 0.9; lungeTimer = (ch3 ? 3.4 : 5) + Math.random() * 2.5; }
+                    if (lungeLeft > 0) { lungeLeft -= delta; speed = inBr ? 6.1 : (ch3 ? 8.0 : 7.2); }
+                    else if (lungeTimer <= 0 && distP < (inBr ? 10 : (ch3 ? 13 : 11)) && !playerInside) {
+                        lungeLeft = inBr ? 0.55 : (ch3 ? 1.05 : 0.9);
+                        lungeTimer = inBr ? 4.5 + Math.random() * 2.0 : ((ch3 ? 3.4 : 5) + Math.random() * 2.5);
+                    }
             }
 
             // El fuego la repele: no entra en el círculo de una fogata/antorcha, la rodea gruñendo, y cerca de cualquier llama va más lenta
@@ -8731,8 +9106,12 @@
 
             // Captura: basta con alcanzarte (dentro de la cabaña solo si entra por la puerta)
             if (distP < 1.4) {
-                startJumpscare('¡EL MONSTRUO TE DEVORÓ!',
-                    'La criatura te atrapó. Cierra y refuerza la puerta, quédate junto a una fogata y usa el flash de la cámara para ahuyentarla.');
+                startJumpscare(
+                    inBr ? '¡ATRAPADO EN EL NIVEL 2!' : '¡EL MONSTRUO TE DEVORÓ!',
+                    inBr
+                        ? 'El monstruo te alcanzó antes de la Puerta de Salida. Sigue las flechas verdes sin parar y usa el flash de la cámara (C) para aturdirlo.'
+                        : 'La criatura te atrapó. Cierra y refuerza la puerta, quédate junto a una fogata y usa el flash de la cámara para ahuyentarla.'
+                );
                 return;
             }
         }
@@ -9708,6 +10087,27 @@
                 const gh = raycaster.intersectObject(cabinGuideHit, false)[0];
                 if (gh && gh.distance < 3.6 && gh.distance < (best ? best.d : 9)) best = { type: 'cguide', d: gh.distance };
             }
+            camera.getWorldDirection(_rd);
+            if (brDoor1.group.visible) {
+                const b1h = raycaster.intersectObject(brDoor1.hit, false)[0];
+                if (b1h && b1h.distance < 4.5 && b1h.distance < (best ? best.d : 9)) best = { type: 'brDoor1', d: b1h.distance };
+                else if (!best || (best.type === 'block' && !breakable(best))) {
+                    const d1 = Math.hypot(BR1_DOOR_X - camera.position.x, 1.8 - camera.position.y, BR1_DOOR_Z - camera.position.z);
+                    if (d1 < 4.2 && ((BR1_DOOR_X - camera.position.x) * _rd.x + (1.8 - camera.position.y) * _rd.y + (BR1_DOOR_Z - camera.position.z) * _rd.z) / Math.max(0.01, d1) > 0.72) {
+                        best = { type: 'brDoor1', d: d1 };
+                    }
+                }
+            }
+            if (brDoor2.group.visible) {
+                const b2h = raycaster.intersectObject(brDoor2.hit, false)[0];
+                if (b2h && b2h.distance < 4.5 && b2h.distance < (best ? best.d : 9)) best = { type: 'brDoor2', d: b2h.distance };
+                else if (!best || (best.type === 'block' && !breakable(best))) {
+                    const d2 = Math.hypot(BR2_DOOR_X - camera.position.x, 1.8 - camera.position.y, BR2_DOOR_Z - camera.position.z);
+                    if (d2 < 4.2 && ((BR2_DOOR_X - camera.position.x) * _rd.x + (1.8 - camera.position.y) * _rd.y + (BR2_DOOR_Z - camera.position.z) * _rd.z) / Math.max(0.01, d2) > 0.72) {
+                        best = { type: 'brDoor2', d: d2 };
+                    }
+                }
+            }
             // Radio de acción amplio: cerca de la puerta y mirando más o menos hacia ella también cuenta (aunque el rayo pase al lado)
             if (!best || (best.type === 'block' && !breakable(best))) {
                 const ddx = -camera.position.x, ddy = 1.55 - camera.position.y, ddz = 3.4 - camera.position.z, dd = Math.hypot(ddx, ddy, ddz);
@@ -9748,6 +10148,11 @@
             if (!f) return '';
             const A = IS_MOBILE ? 'ACCIÓN' : 'E';
             if (f.type === 'door') return doorPromptText();
+            if (f.type === 'brDoor1') {
+                const l1Got = Math.max(0, nextPage - (CH1_PAGES + CH2_PAGES + CH3_PAGES));
+                return l1Got < 4 ? `PUERTA AL NIVEL 2 · RECOGE LAS 4 NOTAS PRIMERO (${l1Got}/4)` : `${A}: abrir la puerta al Nivel 2 (¡prepara tu carrera!)`;
+            }
+            if (f.type === 'brDoor2') return `${A}: abrir Puerta de Salida y regresar al mundo principal`;
             if (f.type === 'loot') return f.c.opened ? 'COFRE VACÍO' : `${A}: abrir el cofre abandonado`;
             if (f.type === 'verity') return `${A}: agarrar a Verity`;
             if (f.type === 'tentExit') return `${A}: salir de la casa de acampar`;
@@ -9801,7 +10206,7 @@
             S.t0 = dayTime; S.rate = (TOTAL_CYCLE - dayTime) / S.lapse;
             S.from.copy(camera.position); S.fromYaw = yaw; S.fromPitch = pitch; S.yaw0 = yaw; S.pitch0 = pitch;
             if (lieAt) S.lie.copy(lieAt); else S.lie.set(bedMesh.position.x, bedMesh.position.y + 0.52, bedMesh.position.z - 0.45);
-            clearInputs(); closePicker(true); closeChest(true); if (craftOpen) toggleCraft(false);
+            clearInputs(); closePicker(true); closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false);
             mining = false; hand.visible = false; flashlight.intensity = 0;
             setDisplay(ui.prompt, 'none');
             player.sanity = 100;
@@ -9825,7 +10230,7 @@
             S.yaw0 = yaw; S.pitch0 = pitch; S.blink = !bed; S.big = o.big || null; S.small = o.small || null; S.msg = o.msg || null;
             if (bed) { S.lie.set(bedMesh.position.x, bedMesh.position.y + 0.52, bedMesh.position.z - 0.45); S.wp = LIE_PITCH; S.wyaw = LIE_YAW; S.wroll = 0.03; }
             else { S.lie.set(player.position.x, player.position.y - 0.75, player.position.z); S.wp = -0.85; S.wyaw = S.yaw0 + 0.35; S.wroll = 0.1; }
-            clearInputs(); closePicker(true); closeChest(true); if (craftOpen) toggleCraft(false);
+            clearInputs(); closePicker(true); closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false);
             mining = false; hand.visible = false; flashlight.intensity = 0; setDisplay(ui.prompt, 'none');
             sleepEls.ov.style.opacity = 1; sleepEls.top.style.height = sleepEls.bot.style.height = '11vh'; sleepEls.cap.style.opacity = 1;
             updateSleep(0);   // el primer fotograma ya está en pose
@@ -9925,7 +10330,7 @@
             if (scare.active || gameEnded) return;
             const S = scare, M = who || monster; S.m = M; S.toBackrooms = soft === 'backrooms'; S.soft = !S.toBackrooms && !!soft;
             S.active = true; S.t = 0; S.title = title; S.desc = desc; S.flashOn = false;
-            closeChest(true); if (craftOpen) toggleCraft(false); closePicker(true);
+            closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false); closePicker(true);
             clearInputs(); mining = false; hand.visible = false; hideNote();
             setDisplay(ui.prompt, 'none');
             const dx = M.position.x - player.position.x, dz = M.position.z - player.position.z, d = Math.hypot(dx, dz);
@@ -10043,7 +10448,23 @@
             if (!started || paused || gameEnded || !focus || sleepCine.active) return;
             const f = focus;
             if (f.type === 'door') interactDoor();
-            else if (f.type === 'curtain') toggleCurtain(f.c);
+            else if (f.type === 'brDoor1') {
+                const l1Got = Math.max(0, nextPage - (CH1_PAGES + CH2_PAGES + CH3_PAGES));
+                if (l1Got < 4) { toast(`RECOGE LAS 4 NOTAS DEL NIVEL 1 ANTES DE CRUZAR (${l1Got}/4)`); playSound('creak', 0.5); return; }
+                brDoor1.open = true;
+                playSound('doorOpen');
+                enterBackroomsLevel2();
+            } else if (f.type === 'brDoor2') {
+                brDoor2.open = true;
+                if (nextPage < TOTAL_PAGES) {
+                    nextPage = TOTAL_PAGES;
+                    inventory.pages = nextPage;
+                    updateInventoryHUD();
+                    placePageObj();
+                }
+                playSound('doorOpen');
+                exitBackroomsToMainWorld();
+            } else if (f.type === 'curtain') toggleCurtain(f.c);
             else if (f.type === 'ctable') toggleCraft(true);
             else if (f.type === 'cguide') toggleGuide(true);
             else if (f.type === 'loot') openLootChest(f.c);
@@ -10188,6 +10609,14 @@
         let btnState = '';
         function updateActionButtons() {
             const bp = $('btn-place'), be = $('btn-eat');
+            if (inBackrooms()) {
+                if (btnState !== 'br') {
+                    btnState = 'br';
+                    be.classList.remove('show');
+                    bp.style.display = 'none';
+                }
+                return;
+            }
             const food = !!FOOD[selected];
             let label = 'PONER', icon = '🧱', cls = '';
             if (selected === 'tseed') {
@@ -10217,6 +10646,7 @@
             if (!food) { bp.innerHTML = `<span>${icon}</span>${label}`; bp.classList.toggle('ready', cls === 'ready'); bp.classList.toggle('dim', cls === 'dim'); }
         }
         function eatSelected() {   // con comida en la mano, "colocar" = comer
+            if (inBackrooms()) { toast('EN LOS BACKROOMS NO TIENES HAMBRE'); return; }
             const k = selected, fd = FOOD[k];
             if (!fd || !(inventory[k] > 0)) return;
             if ((k === 'meat' || k === 'fish') && nearFire(player.position.x, player.position.z, 3.4)) {   // cerca de una llama, la carne y el pescado se asan en vez de comerse crudos
@@ -10239,6 +10669,7 @@
         }
         function placeSelected() {
             if (!started || paused || gameEnded) return;
+            if (inBackrooms()) { toast('EN LOS BACKROOMS SOLO PUEDES EXPLORAR Y ESCAPAR'); return; }
             if (selected === 'hoe') { useHoe(); return; }
             if (selected === 'tseed') { plantSeed(); return; }
             if (selected === 'guitar') { toggleGuitar(); return; }
@@ -10374,7 +10805,7 @@
         function updateFishing(delta) {
             if (!fishing.active) return;
             const dx = fishing.x - player.position.x, dz = fishing.z - player.position.z;
-            if (selected !== 'rod' || !(inventory.rod > 0) || craftOpen || chestOpen || pickerOpen || dx * dx + dz * dz > 64) { stopFishing(); return; }   // cambiar de objeto o alejarte recoge el sedal
+            if (selected !== 'rod' || !(inventory.rod > 0) || craftOpen || guideOpen || chestOpen || pickerOpen || dx * dx + dz * dz > 64) { stopFishing(); return; }   // cambiar de objeto o alejarte recoge el sedal
             fishing.t += delta;
             if (fishing.phase === 'wait') {
                 bobber.position.y = WATER_Y - 0.02 + Math.sin(time * 2.2) * 0.012;
@@ -10867,7 +11298,7 @@
         let mineProg = 0, mineKey = '', mineSoundT = 0, mineMsgT = 0;
         function updateMining(delta) {
             atkCd = Math.max(0, atkCd - delta);
-            if (mining && !craftOpen && !chestOpen && !pickerOpen) {   // un animal en la mira tiene prioridad sobre el bloque
+            if (mining && !craftOpen && !guideOpen && !chestOpen && !pickerOpen) {   // un animal en la mira tiene prioridad sobre el bloque
                 const an = aimedAnimal();
                 if (an) {
                     hl.visible = false; crack.visible = false; mineProg = 0; mineKey = '';
@@ -10877,7 +11308,7 @@
             }
             const fb = focus, pl = fb && fb.type === 'block' ? fb.plant : null;   // una mata/flor en la línea de mira se rompe primero (rápido)
             const f = pl ? { x: pl.x, y: pl.y, z: pl.z, id: pl.id, plant: true } : fb;
-            const isB = !!f && (f.plant || f.type === 'block') && !craftOpen && !chestOpen && !pickerOpen;
+            const isB = !!f && (f.plant || f.type === 'block') && !craftOpen && !guideOpen && !chestOpen && !pickerOpen;
             hl.visible = isB;
             if (isB) hl.position.set(f.x, f.y, f.z);
             mineMsgT -= delta;
@@ -11836,7 +12267,7 @@
         let ghostOk = null;
         function updatePreview() {
             const k = selected;
-            if (!started || gameEnded || craftOpen || chestOpen || pickerOpen || !PLACEABLE[k] || !(inventory[k] > 0) || !focus || focus.type !== 'block') { ghost.visible = false; return; }
+            if (!started || gameEnded || inBackrooms() || craftOpen || guideOpen || chestOpen || pickerOpen || !PLACEABLE[k] || !(inventory[k] > 0) || !focus || focus.type !== 'block') { ghost.visible = false; return; }
             const chk = placeCheck(focus, k), sz = GHOST_SIZE[k] || [1, 1, 1], { px, py, pz } = focus;
             ghost.scale.set(sz[0] * 1.01, sz[1] * 1.01, sz[2] * 1.01);
             ghost.position.set(px, GHOST_SIZE[k] ? py - 0.5 + sz[1] / 2 : py, pz);
@@ -12115,21 +12546,27 @@
             const lowS = player.sanity < 35;
             if (ui.sanity._low !== lowS) { ui.sanity.classList.toggle('low', lowS); ui.sanity._low = lowS; }
 
-            // Hambre: baja con el tiempo; con la barra vacía la cordura se consume
-            const hv = holdingVerity();
-            if (!hv) player.hunger = Math.max(0, player.hunger - delta * HUNGER_DECAY);
-            if (ui.hunger._v !== hv) {
-                ui.hunger.classList.toggle('verity', hv); ui.hunger._v = hv;
-                if (hv && player.hunger < 99.5) toast('VERITY EN LA MANO · TU HAMBRE NO BAJA');
+            // Hambre: en los Backrooms no existe (solo exploración)
+            if (inBr) {
+                player.hunger = 100;
+                hungerWarned = false;
+                starveWarned = false;
+            } else {
+                const hv = holdingVerity();
+                if (!hv) player.hunger = Math.max(0, player.hunger - delta * HUNGER_DECAY);
+                if (ui.hunger._v !== hv) {
+                    ui.hunger.classList.toggle('verity', hv); ui.hunger._v = hv;
+                    if (hv && player.hunger < 99.5) toast('VERITY EN LA MANO · TU HAMBRE NO BAJA');
+                }
+                if (player.hunger <= 0) player.sanity = Math.max(0, player.sanity - delta * STARVE_DRAIN);
+                const hw = `${Math.round(player.hunger)}%`;
+                if (ui.hunger._w !== hw) { ui.hunger.style.width = hw; ui.hunger._w = hw; }
+                const lowH = player.hunger < HUNGER_LOW;
+                if (ui.hunger._low !== lowH) { ui.hunger.classList.toggle('low', lowH); ui.hunger._low = lowH; }
+                if (player.hunger <= 0 && !starveWarned) { starveWarned = true; toast('¡MUERES DE HAMBRE! ROMPE HOJAS O HONGOS Y COME'); }
+                else if (player.hunger < HUNGER_LOW && !hungerWarned) { hungerWarned = true; toast('TIENES HAMBRE: ROMPE HOJAS DE ÁRBOLES PARA ENCONTRAR FRUTOS'); }
+                if (player.hunger > 45) { hungerWarned = false; starveWarned = false; }
             }
-            if (player.hunger <= 0) player.sanity = Math.max(0, player.sanity - delta * STARVE_DRAIN);
-            const hw = `${Math.round(player.hunger)}%`;
-            if (ui.hunger._w !== hw) { ui.hunger.style.width = hw; ui.hunger._w = hw; }
-            const lowH = player.hunger < HUNGER_LOW;
-            if (ui.hunger._low !== lowH) { ui.hunger.classList.toggle('low', lowH); ui.hunger._low = lowH; }
-            if (player.hunger <= 0 && !starveWarned) { starveWarned = true; toast('¡MUERES DE HAMBRE! ROMPE HOJAS O HONGOS Y COME'); }
-            else if (player.hunger < HUNGER_LOW && !hungerWarned) { hungerWarned = true; toast('TIENES HAMBRE: ROMPE HOJAS DE ÁRBOLES PARA ENCONTRAR FRUTOS'); }
-            if (player.hunger > 45) { hungerWarned = false; starveWarned = false; }
 
             // Efecto visual: la cordura baja tiñe la pantalla de rojo y la cercanía del Errante / Cap. 3 oprimen la visión
             glitchPulse = Math.max(0, glitchPulse - delta * 2.5);
@@ -12202,7 +12639,7 @@
             const moving = _move.lengthSq() > 0.01;
             if (_move.lengthSq() > 1) _move.normalize();
 
-            const speed = ch3Trap.active ? 0 : (player.hunger < 15 ? 4.8 : 5.8);   // débil por el hambre
+            const speed = ch3Trap.active ? 0 : ((!inBr && player.hunger < 15) ? 4.8 : 5.8);   // débil por el hambre fuera de los Backrooms
             player.velocity.x = _move.x * speed;
             player.velocity.z = _move.z * speed;
 
@@ -12261,8 +12698,10 @@
 
             // Red de seguridad por si algo falla en las colisiones
             if (player.position.y < -12) {
-                if (inBackrooms()) player.position.set(BKX_SPAWN, 2.6, BKZ_SPAWN);
-                else player.position.set(0, 2.6, 0);
+                if (inBackrooms()) {
+                    const l2 = activeBrOrigin().level === 2;
+                    player.position.set(l2 ? BKX2_SPAWN : BKX_SPAWN, 2.6, l2 ? BKZ2_SPAWN : BKZ_SPAWN);
+                } else player.position.set(0, 2.6, 0);
                 player.velocity.set(0, 0, 0);
             }
 
@@ -12323,6 +12762,8 @@
                 setDisplay(ui.prompt, 'none');
             }
             updateDoor(delta);
+            updateBrDoors(delta);
+            updateBackroomArrows();
             updateCurtains(delta);
             updateCabinExterior();
             updateCoords();
@@ -12334,10 +12775,13 @@
             const doorExposed = isSafe && !inTent && isNight && door.state !== 'closed';
             let zoneTxt, danger;
             if (inBr) {
-                const bgx = Math.floor((player.position.x - BKX) / BR_CELL), bgz = Math.floor((player.position.z - BKZ) / BR_CELL);
-                if (bgx <= -4 && bgz >= 3) { zoneTxt = 'SECTOR CARMESÍ'; danger = true; }
-                else if (monster.body.visible) { zoneTxt = '¡ALGO EN LOS PASILLOS!'; danger = true; }
-                else { zoneTxt = underBrLight ? 'BAJO FLUORESCENTE (SEGURO)' : 'NIVEL 0 · LOS BACKROOMS'; danger = false; }
+                const brInfo = activeBrOrigin();
+                if (brInfo.level === 2) { zoneTxt = '🚨 NIVEL 2 · ¡CORRE A LA SALIDA!'; danger = true; }
+                else {
+                    const bgx = Math.floor((player.position.x - BKX) / BR_CELL), bgz = Math.floor((player.position.z - BKZ) / BR_CELL);
+                    if (bgx <= -4 && bgz >= 3) { zoneTxt = 'NIVEL 1 · SECTOR CARMESÍ'; danger = false; }
+                    else { zoneTxt = underBrLight ? 'NIVEL 1 · BAJO FLUORESCENTE' : 'NIVEL 1 · EXPLORACIÓN SEGURA'; danger = false; }
+                }
             }
             else if (atFire) { zoneTxt = 'JUNTO A LA FOGATA'; danger = false; }
             else if (!isSafe) { zoneTxt = isNight ? '¡EN PELIGRO!' : 'FUERA (DÍA)'; danger = isNight; }
@@ -12434,6 +12878,10 @@
             chapter = 1; TOTAL_PAGES = CH1_PAGES; for (let k = CH1_PAGES; k < PAGE_REVEAL_DAYS.length; k++) PAGE_REVEAL_DAYS[k] = 0; btnContinue.style.display = 'none';
             ch3GlitchT = 0; ch3BurstT = 0; ch3TearT = 0; ch3CorruptT = 0; ch3BreachCD = 32; ch3DayHunt = 0; ch3SkyFlicker = 0;
             ch3Trap.active = false; brGraceT = 0; ch4Skipping = false;
+            brLevel = 1; backroomsEscaped = false; brPathKey = '';
+            brDoor1.open = false; brDoor1.angle = 0; brDoor1.pivot.rotation.y = 0;
+            brDoor2.open = false; brDoor2.angle = 0; brDoor2.pivot.rotation.y = 0;
+            clearBackroomArrows();
             for (let i = 0; i < backroomLights.length; i++) backroomLights[i].intensity = 0;
             clearCh3FX();
             finalNight = false; finalChase = false; hintedPages.clear(); pendingHint = false; pendingGuide = false; pendingOmen = 0; scratchSeen = false; collectedNotes.clear();
@@ -12526,7 +12974,7 @@
             sv.sanity = player.sanity; sv.hunger = player.hunger; sv.flash = flashlightOn;
             sv.dayTime = dayTime; sv.days = daysPlayed; sv.weather = weather; sv.wx = [wxCloud, wxRain, wxFog];
             sv.inv = Object.assign({}, inventory); sv.slots = slots.slice(); sv.selSlot = selSlot; sv.owned = [...ownedSeen]; sv.disc = [...discovered]; sv.durab = Object.assign({}, durab);
-            sv.chapter = chapter; sv.nextPage = nextPage; sv.reveal = Array.from(PAGE_REVEAL_DAYS); sv.finalNight = finalNight; sv.finalChase = finalChase; sv.hinted = [...hintedPages]; sv.scratch = scratchSeen; sv.notes = [...collectedNotes]; sv.brGraceT = brGraceT;
+            sv.chapter = chapter; sv.nextPage = nextPage; sv.reveal = Array.from(PAGE_REVEAL_DAYS); sv.finalNight = finalNight; sv.finalChase = finalChase; sv.hinted = [...hintedPages]; sv.scratch = scratchSeen; sv.notes = [...collectedNotes]; sv.brGraceT = brGraceT; sv.brLevel = brLevel; sv.backroomsEscaped = backroomsEscaped;
             sv.planks = [...collectedPlanks]; sv.chests = [...lootedChests];
             sv.door = { state: door.state, planks: door.planks, damage: door.damage };
             sv.tentUpg = { level: tentUpg.level, dep: tentUpg.dep }; sv.pocketInit = pocketInit;
@@ -12620,11 +13068,15 @@
                 TOTAL_PAGES = chapter >= 4 ? CH1_PAGES + CH2_PAGES + CH3_PAGES + CH4_PAGES : (chapter >= 3 ? CH1_PAGES + CH2_PAGES + CH3_PAGES : (chapter >= 2 ? CH1_PAGES + CH2_PAGES : CH1_PAGES));
                 (sv.reveal || []).forEach((v, i) => { PAGE_REVEAL_DAYS[i] = v; });
                 nextPage = sv.nextPage || 0; finalNight = !!sv.finalNight; finalChase = !!sv.finalChase; scratchSeen = !!sv.scratch; brGraceT = sv.brGraceT || 0;
+                brLevel = sv.brLevel || ((sv.pos && Math.abs(sv.pos[0] - BKX2) < 340) ? 2 : 1);
+                backroomsEscaped = !!sv.backroomsEscaped;
+                brDoor1.open = brLevel >= 2; brDoor1.angle = brDoor1.open ? -1.75 : 0; brDoor1.pivot.rotation.y = brDoor1.angle;
+                brDoor2.open = backroomsEscaped; brDoor2.angle = brDoor2.open ? -1.75 : 0; brDoor2.pivot.rotation.y = brDoor2.angle;
+                brPathKey = '';
                 hintedPages.clear(); (sv.hinted || []).forEach((k) => hintedPages.add(k));
                 collectedNotes.clear(); (sv.notes || []).forEach((k) => collectedNotes.add(k));
                 dayTime = sv.dayTime || 0; daysPlayed = sv.days || 1; setText(ui.dayCount, `DÍA ${daysPlayed}`);
                 weather = WX[sv.weather] ? sv.weather : 'sunny'; [wxCloud, wxRain, wxFog] = sv.wx || [0, 0, 0];
-                updateDayNightCycle(0);
                 // jugador
                 let [px, py, pz] = sv.pos;
                 player.sanity = sv.sanity; player.hunger = sv.hunger; flashlightOn = sv.flash !== false;
@@ -12633,6 +13085,9 @@
                 clearAllChunks(); streamChunks(px, pz, 1e9);
                 if (sv.tent) { const q = findOpenSpot(sv.tent.x, sv.tent.z, sv.tent.yaw || 0); px = q[0]; pz = q[1]; py = 2.6; }
                 player.position.set(px, py, pz); player.velocity.set(0, 0, 0); player.onGround = false;
+                updateDayNightCycle(0);
+                updateBrDoors(0);
+                updateBackroomArrows();
                 // objetos
                 for (const k in inventory) inventory[k] = (sv.inv && sv.inv[k]) || 0;
                 slots.fill(null); (sv.slots || []).forEach((k, i) => { if (i < slots.length && k && ITEMS[k]) slots[i] = k; });
@@ -12654,16 +13109,18 @@
                 return true;
             } catch (e) { console.error('Error al cargar la partida', e); return false; }
         }
-        function afterLoadSpawn() {   // al cargar: despiertas dentro de la cabaña (por defecto), en tu punto de reaparición o donde guardaste (en Cap. 4 siempre en los Backrooms)
-            if (chapter >= 4) {
+        function afterLoadSpawn() {   // al cargar: despiertas dentro de la cabaña (por defecto), en tu punto de reaparición o donde guardaste (en Cap. 4 sin escapar, en los Backrooms)
+            if (chapter >= 4 && !backroomsEscaped) {
+                const isL2 = brLevel === 2;
                 if (OPT.cont !== 'saved') {
-                    player.position.set(BKX_SPAWN, 2.6, BKZ_SPAWN); player.velocity.set(0, 0, 0); player.onGround = false;
+                    const sx = isL2 ? BKX2_SPAWN : BKX_SPAWN, sz = isL2 ? BKZ2_SPAWN : BKZ_SPAWN;
+                    player.position.set(sx, 2.6, sz); player.velocity.set(0, 0, 0); player.onGround = false;
                     yaw = 0; pitch = 0; lastYaw = 0; lastPitch = 0;
-                    streamChunks(BKX_SPAWN, BKZ_SPAWN, 1e9);
+                    streamChunks(sx, sz, 1e9);
                 }
-                startWakeUp({ pose: 'blink', big: 'CAPÍTULO 4 · LOS BACKROOMS', dur: 2.8,
-                    small: 'Despiertas en los pasillos amarillos...',
-                    msg: 'PARTIDA CARGADA · NIVEL 0 (LOS BACKROOMS)' });
+                startWakeUp({ pose: 'blink', big: `CAPÍTULO 4 · BACKROOMS NIVEL ${isL2 ? 2 : 1}`, dur: 2.8,
+                    small: isL2 ? 'Despiertas en el nivel de salida...' : 'Despiertas en los pasillos amarillos...',
+                    msg: isL2 ? 'PARTIDA CARGADA · NIVEL 2 · ¡CORRE A LA SALIDA!' : 'PARTIDA CARGADA · NIVEL 1 (EXPLORACIÓN)' });
                 return;
             }
             const mode = OPT.cont;
