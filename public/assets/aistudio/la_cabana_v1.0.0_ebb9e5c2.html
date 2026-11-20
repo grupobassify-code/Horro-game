@@ -500,6 +500,41 @@
         #chest-hint { margin-top: 8px; color: #8a7a5a; font-size: 10px; }
         @media (max-width: 480px) { #chest-cols { grid-template-columns: 1fr; } .ch-list { max-height: 21vh; } }
 
+        #quest-card { cursor: pointer; pointer-events: auto; border-color: rgba(241, 196, 15, 0.72); color: #f7df8b; transition: transform .12s, background .12s; }
+        #quest-card:hover { background: rgba(45, 32, 12, 0.92); transform: translateY(-1px); }
+        #quest-panel, #shop-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: min(620px, 95vw); max-height: 82vh; display: none; flex-direction: column;
+            z-index: 60; background: linear-gradient(180deg, rgba(28,22,13,.98), rgba(13,10,6,.98)); border: 1px solid #c99a42; border-radius: 12px; padding: 14px;
+            box-shadow: 0 0 42px #000, inset 0 0 28px rgba(201,154,66,.14); animation: panelIn .22s ease; }
+        #quest-panel, #quest-panel *, #shop-panel, #shop-panel * { touch-action: pan-y; }
+        .qs-head { display: flex; align-items: center; gap: 10px; color: #f4cc6c; margin-bottom: 10px; }
+        .qs-head b { margin-right: auto; letter-spacing: 1px; font-size: 15px; }
+        .qs-coins { font-size: 12px; font-weight: bold; padding: 4px 10px; border-radius: 12px; background: rgba(241,196,15,.16); border: 1px solid rgba(241,196,15,.55); color: #ffd859; }
+        .qs-close { background: none; border: 1px solid #8a6a3a; color: #e0b66a; border-radius: 6px; padding: 4px 10px; font-family: inherit; cursor: pointer; }
+        .qs-sub { color: #b9ab92; font-size: 11.5px; line-height: 1.4; margin-bottom: 8px; }
+        .qs-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; flex: 0 0 auto; }
+        .qs-list { display: grid; gap: 8px; overflow-y: auto; min-height: 0; padding-right: 2px; align-content: start; }
+        .q-card { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.05); border: 1px solid rgba(241,196,15,.28); border-radius: 9px; padding: 9px 11px; color: #efe4ce; font-size: 12.5px; }
+        .q-card.done { border-color: rgba(46,204,113,.55); background: rgba(46,204,113,.09); }
+        .q-ic { font-size: 26px; width: 34px; text-align: center; flex: 0 0 auto; }
+        .q-body { flex: 1 1 auto; min-width: 0; display: grid; gap: 4px; }
+        .q-body b { color: #f8dc8c; font-size: 13px; }
+        .q-card.done .q-body b { color: #8be8ad; }
+        .q-body small { color: #bcb09a; font-size: 11px; line-height: 1.35; }
+        .q-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; }
+        .q-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #e67e22, #f1c40f); border-radius: 3px; }
+        .q-card.done .q-bar > i { background: #2ecc71; }
+        .q-rew { flex: 0 0 auto; text-align: right; display: grid; gap: 3px; font-size: 11.5px; color: #ffd859; font-weight: bold; }
+        .q-rew span { font-size: 10.5px; color: #a89c86; font-weight: normal; }
+        .q-card.done .q-rew span { color: #7be0a0; font-weight: bold; }
+        .shop-item { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.05); border: 1px solid rgba(224,182,106,.32); border-radius: 9px; padding: 8px 10px; }
+        .shop-item.cant { opacity: .68; border-color: rgba(255,255,255,.14); }
+        .shop-buy { flex: 0 0 auto; background: rgba(241,196,15,.22); border: 1px solid #f1c40f; color: #ffd859; border-radius: 7px; padding: 7px 11px; font-family: inherit; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .shop-buy:hover:not(:disabled) { background: rgba(241,196,15,.36); }
+        .shop-buy:disabled { opacity: .4; cursor: default; border-color: #666; color: #999; background: none; }
+        .qs-foot { margin-top: 8px; color: #8d7f66; font-size: 10.5px; flex: 0 0 auto; }
+        #btn-quest { top: calc(124px + (var(--m) + 10px) * 3 + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); display: none; }
+        #btn-save { top: calc(124px + (var(--m) + 10px) * 4 + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); }
+
         #craft-banner { position: fixed; top: 20%; left: 50%; transform: translate(-50%, -30px) scale(.7); opacity: 0; z-index: 70; pointer-events: none; text-align: center;
             background: linear-gradient(180deg, rgba(40,28,14,.95), rgba(20,14,8,.95)); border: 1px solid #e0b66a; border-radius: 12px; padding: 12px 28px;
             box-shadow: 0 0 36px rgba(224,182,106,.35); color: #f1c40f; letter-spacing: 1px; }
@@ -789,6 +824,7 @@
             <div class="bar-container"><div id="hunger-fill"></div></div>
         </div>
         <div class="status-card">📜 <span id="pages-count">0/7</span> · 📸 <span id="camera-status" style="color:#f1c40f">LISTA</span></div>
+        <div class="status-card" id="quest-card" style="display:none" title="Diario de misiones (M)">📓 MISIONES · 🪙 <span id="coins-count" style="color:#ffd859;font-weight:bold">0</span></div>
         <div class="status-card" id="coords-card"><span id="coord-txt">📍 X <b id="coord-x">0</b> · Z <b id="coord-z">0</b></span><span id="coord-tent" style="display:none">⛺ CASA DE ACAMPAR</span></div>
         <div class="status-card" id="objective"></div>
     </div>
@@ -841,6 +877,18 @@
         </div>
         <div id="chest-hint">Pulsa «1» para mover una unidad o «Todo» para mover el montón. Las herramientas también se guardan (conservan su desgaste; una por tipo). E cierra el cofre.</div>
     </div>
+    <div id="quest-panel">
+        <div class="qs-head"><b>📓 DIARIO DE MISIONES</b><span class="qs-coins" id="quest-coins">🪙 0</span><button class="qs-close" id="quest-close">✕</button></div>
+        <div class="qs-tabs" id="quest-tabs"></div>
+        <div class="qs-list" id="quest-list"></div>
+        <div class="qs-foot" id="quest-foot">Tecla M o E para cerrar · Completa encargos secundarios para ganar dinero y comprar equipo a los comerciantes del bosque.</div>
+    </div>
+    <div id="shop-panel">
+        <div class="qs-head"><b id="shop-title">🛒 COMERCIANTE</b><span class="qs-coins" id="shop-coins">🪙 0</span><button class="qs-close" id="shop-close">✕</button></div>
+        <div class="qs-sub" id="shop-desc"></div>
+        <div class="qs-list" id="shop-list"></div>
+        <div class="qs-foot">Tecla E o Esc para cerrar · Gana monedas con las misiones secundarias del Diario (tecla M).</div>
+    </div>
     <div id="item-name"></div>
     <div id="slot-picker"></div>
     <div id="craft-banner"><div class="big" id="banner-ic"></div><div id="banner-t"></div><small id="banner-s"></small></div>
@@ -857,6 +905,7 @@
         <button id="btn-flash" class="mini-btn">🔦</button>
         <button id="btn-camera" class="mini-btn">📸</button>
         <button id="btn-craft" class="mini-btn">🛠️</button>
+        <button id="btn-quest" class="mini-btn">📓</button>
         <button id="btn-save" class="mini-btn">💾</button>
     </div>
 
@@ -901,6 +950,7 @@
             <span><b>E</b></span><span>Acción (puerta, cama, cajas, recoger)</span>
             <span><b>Q</b></span><span>Crafteo (E sobre una mesa de trabajo también lo abre)</span>
             <span><b>G</b></span><span>Utilitario de recetas: mecánicas, guía de materiales y enciclopedia (también con E sobre el escritorio de la cabaña)</span>
+            <span><b>M</b></span><span>Diario de misiones (se encuentra en el primer cofre abandonado; da dinero para comprar a comerciantes)</span>
             <span><b>O</b></span><span>Muestra otra vez el objetivo del modo historia (se oculta solo a los 10 s para dejar más pantalla)</span>
             <span><b>1-6 / Rueda</b></span><span>Elegir hueco · Tab o clic en el hueco: cambiar su objeto</span>
             <span><b>F · C</b></span><span>Linterna · Flash de cámara</span>
@@ -990,6 +1040,7 @@
             note: $('note-panel'), noteTitle: $('note-title'), noteText: $('note-text'),
             objective: $('objective'), victoryText: $('victory-text'), introText: $('intro-text'), time: $('time-display'), dayCount: $('day-count'), sanity: $('sanity-fill'), hunger: $('hunger-fill'),
             hotbar: $('inventory-hud'), pages: $('pages-count'), cam: $('camera-status'),
+            questCard: $('quest-card'), coins: $('coins-count'),
             prompt: $('interact-prompt'), glitch: $('glitch-overlay'), flash: $('camera-flash-overlay'), vignette: $('vignette'),
             ch3Scan: $('ch3-scanlines'), ch3TearA: $('ch3-tear-a'), ch3TearB: $('ch3-tear-b'),
             start: $('start-screen'), pause: $('pause-screen'),
@@ -1264,6 +1315,10 @@
                 case 'discover':
                     [523, 659, 784, 1046].forEach((f, i) => tone({ type: 'sine', f0: f, f1: f * 0.99, dur: 0.35, vol: 0.22, delay: i * 0.09 }));
                     break;
+                case 'coin':
+                    tone({ type: 'sine', f0: 1175, f1: 1175, dur: 0.11, vol: 0.22 * vol });
+                    tone({ type: 'sine', f0: 1568, f1: 1568, dur: 0.24, vol: 0.24 * vol, delay: 0.08 });
+                    break;
                 case 'step':
                     noiseBurst({ freq: 320, dur: 0.09, vol: 0.14 * vol });
                     break;
@@ -1470,17 +1525,19 @@
         lightningLight.position.set(0, 100, 0);
         scene.add(lightningLight);
 
-        // Linterna del jugador
-        const flashlight = new THREE.SpotLight(0xfffaed, 5.2, 44, Math.PI / 4.1, 0.4, 1);   // antes 3.0 / 30 m / π÷5: ahora ilumina más, más lejos y más ancho
+        // Linterna del jugador (potente: largo alcance, cono amplio y luz de relleno cercana)
+        const flashlight = new THREE.SpotLight(0xfffcf2, 10.5, 74, Math.PI / 3.3, 0.42, 0.82);
         flashlight.castShadow = !IS_MOBILE; // las sombras de la linterna son lo más caro en móvil
         flashlight.shadow.mapSize.set(IS_MOBILE ? 256 : 512, IS_MOBILE ? 256 : 512);
         flashlight.shadow.camera.near = 0.3;
-        flashlight.shadow.camera.far = 44;
+        flashlight.shadow.camera.far = 72;
         flashlight.shadow.bias = -0.0008;
         scene.add(flashlight);
         scene.add(flashlight.target);
+        const flashlightFill = new THREE.PointLight(0xfff6dc, 0, 18, 1.05);
+        scene.add(flashlightFill);
         let flashlightOn = true;
-        const FLASHLIGHT_INTENSITY = 5.2;
+        const FLASHLIGHT_INTENSITY = 10.5;
 
         // Destello breve de la cámara: la luz existe siempre (intensidad 0) para no recompilar shaders.
         const flashBurst = new THREE.PointLight(0xffffff, 0, 28, 1);
@@ -5605,6 +5662,8 @@
             craftOpen = wantOpen;
             if (stoveOpen) closeStove();   // la estufa también
             if (guideOpen) { guideOpen = false; setDisplay(guidePanel, 'none'); }   // el Utilitario cuenta como "crafteo abierto"
+            if (questOpen) { questOpen = false; setDisplay(questPanel, 'none'); }
+            if (shopOpen) closeShop(true);
             setDisplay(craftPanel, craftOpen ? 'flex' : 'none');
             if (craftOpen) {
                 mining = false; if (pickerOpen) closePicker(true); closeChest(true); renderCraft();
@@ -5640,7 +5699,7 @@
             const S = [
                 ['⌨️', 'Controles', `<ul>
                     <li><b>W A S D</b> moverte · <b>ratón</b> mirar · <b>clic</b> (mantén) romper, talar o atacar · <b>clic dcho.</b> colocar, usar o comer lo que llevas en la mano.</li>
-                    <li><b>E</b> acción (puerta, cama, cofres, mesas, escritorio, recoger) · <b>Q</b> crafteo · <b>G</b> este Utilitario · <b>B</b> mochila · <b>X</b> cierra la nota del diario.</li>
+                    <li><b>E</b> acción (puerta, cama, cofres, comerciantes, mesas, escritorio, recoger) · <b>Q</b> crafteo · <b>G</b> este Utilitario · <b>M</b> diario de misiones · <b>B</b> mochila · <b>X</b> cierra la nota del diario.</li>
                     <li><b>1-6</b> o rueda: elegir hueco · <b>Tab</b> o clic en un hueco: cambiar su objeto.</li>
                     <li><b>F</b> linterna · <b>C</b> flash de la cámara (recarga ${cameraCooldownTimeLabel()} s) · <b>Espacio</b> saltar, trepar escaleras o subir en el agua · <b>Shift</b> bajar en el agua.</li>
                     <li><b>Móvil:</b> joystick a la izquierda, arrastra a la derecha para mirar y deja el dedo quieto para romper. Botones ACCIÓN, PONER, COMER, SALTO y 🛠️ crafteo.</li></ul>`],
@@ -5987,6 +6046,8 @@
                 mining = false;
                 if (craftOpen) { craftOpen = false; crafting = null; $('craft-prog-fill').style.width = '0'; setDisplay(craftPanel, 'none'); }
                 if (stoveOpen) closeStove();
+                if (questOpen) { questOpen = false; setDisplay(questPanel, 'none'); }
+                if (shopOpen) closeShop(true);
                 if (pickerOpen) closePicker(true);
                 closeChest(true);
                 setDisplay(guidePanel, 'flex'); renderGuide(); playSound('click');
@@ -6041,6 +6102,7 @@
                 if (st.prog >= 1) {
                     st.prog = 0; st.food[kind]--;
                     const o = STOVE_COOK[kind]; st.out[o] = (st.out[o] || 0) + 1;
+                    questProgress('cook', 1);
                     if (Math.hypot(p.x - player.position.x, p.z - player.position.z) < 10) playSound('sizzle', 0.5);
                     if (stoveProp === p) renderStove();
                 }
@@ -6161,6 +6223,8 @@
         function openChest(p) {
             if (!started || gameEnded || chestOpen) return;
             if (craftOpen) toggleCraft(false);
+            if (questOpen) { questOpen = false; setDisplay(questPanel, 'none'); }
+            if (shopOpen) closeShop(true);
             if (pickerOpen) closePicker(true);
             chestOpen = true; chestProp = p; mining = false;
             renderChest(); setDisplay(chestPanel, 'flex'); playSound('creak', 0.6);
@@ -6205,6 +6269,7 @@
             if (TOOLS.has(r.out)) durab[r.out] = TOOL_USES[r.out];
             const first = !discovered.has(r.out);
             discovered.add(r.out);
+            questProgress('craft', qty);
             updateInventoryHUD();
             selectItem(r.out);
             popSlot(r.out);
@@ -6219,6 +6284,333 @@
             $('banner-ic').textContent = icon; $('banner-t').textContent = title; $('banner-s').textContent = sub;
             b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
         }
+
+        // ============================================================
+        // DIARIO DE MISIONES SECUNDARIAS, DINERO Y COMERCIANTES
+        // ============================================================
+        let coins = 0, questJournal = false, questOpen = false, questTab = 'active', shopOpen = false, activeMerchant = null;
+        const questPanel = $('quest-panel'), shopPanel = $('shop-panel');
+        const SIDE_QUESTS = [
+            { id: 'fish1', icon: '🐟', type: 'fish', goal: 1, reward: 25, title: 'Pescador del pinar', desc: 'Pesca un pez en cualquier lago usando una caña de pescar.' },
+            { id: 'plant1', icon: '🌱', type: 'plant', goal: 1, reward: 15, title: 'Manos en la tierra', desc: 'Planta una semilla de tomate en una parcela labrada con la azada.' },
+            { id: 'tomato1', icon: '🍅', type: 'tomato', goal: 1, reward: 30, title: 'Cultiva un tomate', desc: 'Espera a que madure la planta y cosecha un tomate con la azada.' },
+            { id: 'log4', icon: '🪵', type: 'log', goal: 4, reward: 20, title: 'Leñador incansable', desc: 'Tala 4 troncos de árbol en el bosque.' },
+            { id: 'cook2', icon: '🍖', type: 'cook', goal: 2, reward: 25, title: 'Comida caliente', desc: 'Asa 2 piezas de carne o pescado (junto a una llama o en estufa).' },
+            { id: 'hunt2', icon: '🏹', type: 'hunt', goal: 2, reward: 30, title: 'Rastreador del claro', desc: 'Caza 2 animales del bosque.' },
+            { id: 'craft3', icon: '🛠️', type: 'craft', goal: 3, reward: 25, title: 'Manitas de la cabaña', desc: 'Fabrica 3 objetos desde el menú de crafteo.' },
+            { id: 'chest2', icon: '📦', type: 'chest', goal: 2, reward: 35, title: 'Cazatesoros', desc: 'Abre 2 cofres abandonados repartidos por el bosque.' },
+            { id: 'tomato3', icon: '🍅', type: 'tomato', goal: 3, reward: 45, title: 'Huerto abundante', desc: 'Cosecha 3 tomates maduros en total.' },
+            { id: 'fish3', icon: '🎣', type: 'fish', goal: 3, reward: 45, title: 'Maestro de la caña', desc: 'Pesca 3 peces en los lagos del bosque.' }
+        ];
+        const REPEAT_QUESTS = [
+            { id: 'rep_fish', icon: '🐟', type: 'fish', goal: 1, reward: 20, repeat: true, title: 'Encargo · Pescado fresco', desc: 'Pesca 1 pez en un lago (repetible).' },
+            { id: 'rep_tomato', icon: '🍅', type: 'tomato', goal: 1, reward: 25, repeat: true, title: 'Encargo · Tomate maduro', desc: 'Cultiva y cosecha 1 tomate (repetible).' },
+            { id: 'rep_cook', icon: '🍖', type: 'cook', goal: 1, reward: 15, repeat: true, title: 'Encargo · Ración asada', desc: 'Asa 1 carne o pescado (repetible).' },
+            { id: 'rep_hunt', icon: '🏹', type: 'hunt', goal: 1, reward: 18, repeat: true, title: 'Encargo · Pieza de caza', desc: 'Caza 1 animal del bosque (repetible).' },
+            { id: 'rep_log', icon: '🪵', type: 'log', goal: 5, reward: 15, repeat: true, title: 'Encargo · Carga de leña', desc: 'Tala 5 troncos de árbol (repetible).' }
+        ];
+        let questState = { prog: {}, done: {}, repCount: {} };
+        const QUEST_TABS = [['active', '📜 Activas'], ['repeat', '🔄 Encargos'], ['done', '✅ Completadas'], ['traders', '🛒 Comerciantes']];
+
+        function updateQuestHUD() {
+            const show = questJournal || coins > 0;
+            setDisplay(ui.questCard, show ? 'flex' : 'none');
+            setText(ui.coins, String(coins));
+            const bq = $('btn-quest');
+            if (bq) bq.style.display = show ? 'flex' : 'none';
+            if (questOpen) setText($('quest-coins'), `🪙 ${coins}`);
+            if (shopOpen) setText($('shop-coins'), `🪙 ${coins}`);
+        }
+        function questProgress(type, amount) {
+            const add = amount === undefined ? 1 : amount;
+            if (!type || add <= 0) return;
+            for (const q of SIDE_QUESTS) {
+                if (questState.done[q.id] || q.type !== type) continue;
+                const next = Math.min(q.goal, (questState.prog[q.id] || 0) + add);
+                questState.prog[q.id] = next;
+                if (questJournal && next >= q.goal) {
+                    questState.done[q.id] = true;
+                    coins += q.reward;
+                    playSound('coin');
+                    toast(`🪙 +${q.reward} · MISIÓN COMPLETADA: ${q.title.toUpperCase()}`);
+                }
+            }
+            if (questJournal) {
+                for (const q of REPEAT_QUESTS) {
+                    if (q.type !== type) continue;
+                    let next = (questState.prog[q.id] || 0) + add;
+                    while (next >= q.goal) {
+                        next -= q.goal;
+                        questState.repCount[q.id] = (questState.repCount[q.id] || 0) + 1;
+                        coins += q.reward;
+                        playSound('coin');
+                        toast(`🪙 +${q.reward} · ${q.title.toUpperCase()}`);
+                    }
+                    questState.prog[q.id] = next;
+                }
+            }
+            updateQuestHUD();
+            if (questOpen) renderQuestPanel();
+            if (shopOpen) renderShop();
+        }
+        function unlockQuestJournal(showNotice) {
+            if (questJournal) return;
+            questJournal = true;
+            coins += 10;
+            for (const q of SIDE_QUESTS) {
+                if (!questState.done[q.id] && (questState.prog[q.id] || 0) >= q.goal) {
+                    questState.done[q.id] = true;
+                    coins += q.reward;
+                }
+            }
+            updateQuestHUD();
+            playSound('discover');
+            showBanner('📓', 'DIARIO DE MISIONES', '+10 🪙 · PULSA M PARA VER ENCARGOS');
+            if (showNotice) {
+                setTimeout(() => {
+                    if (!started || gameEnded) return;
+                    if (ui.note.style.display === 'block') {
+                        toast('📓 DIARIO DE MISIONES DESBLOQUEADO (+10 🪙) · PULSA M');
+                        return;
+                    }
+                    setText(ui.noteTitle, '📓 DIARIO DE MISIONES ENCONTRADO');
+                    setText(ui.noteText, 'Entre las pertenencias del cofre había un viejo diario de encargos y 10 monedas de oro (🪙). Completa misiones secundarias como pescar un pez o cultivar un tomate para ganar dinero y comprar provisiones a los comerciantes del bosque (Braulio junto a la cabaña, Valeria en el campamento y Tomás en el puesto). Pulsa M para abrirlo cuando quieras.');
+                    setDisplay(ui.note, 'block'); noteTimer = 18;
+                }, 900);
+            }
+        }
+        function renderQuestPanel() {
+            $('quest-tabs').innerHTML = QUEST_TABS.map(([id, nm]) => `<button class="gtab${id === questTab ? ' on' : ''}" data-qt="${id}">${nm}</button>`).join('');
+            setText($('quest-coins'), `🪙 ${coins}`);
+            const listEl = $('quest-list');
+            if (questTab === 'traders') {
+                listEl.innerHTML = MERCHANTS.map((m) =>
+                    `<div class="q-card"><div class="q-ic">${m.icon}</div><div class="q-body"><b>${m.name} · <span style="color:#ffd859">X ${Math.round(m.x)} · Z ${Math.round(m.z)}</span></b><small>${m.desc}</small></div></div>`
+                ).join('');
+                return;
+            }
+            let list = [];
+            if (questTab === 'active') list = SIDE_QUESTS.filter((q) => !questState.done[q.id]);
+            else if (questTab === 'done') list = SIDE_QUESTS.filter((q) => questState.done[q.id]);
+            else list = REPEAT_QUESTS;
+            if (!list.length) {
+                listEl.innerHTML = `<div class="gd-note">${questTab === 'active' ? '¡Has completado todas las misiones principales! Prueba los 🔄 Encargos repetibles para seguir ganando monedas.' : 'Aún no has completado ninguna misión.'}</div>`;
+                return;
+            }
+            listEl.innerHTML = list.map((q) => {
+                const done = !!questState.done[q.id];
+                const cur = done ? q.goal : Math.min(q.goal, questState.prog[q.id] || 0);
+                const pct = Math.round((cur / q.goal) * 100);
+                const reps = q.repeat ? (questState.repCount[q.id] || 0) : 0;
+                return `<div class="q-card${done ? ' done' : ''}"><div class="q-ic">${q.icon}</div><div class="q-body"><b>${q.title}${reps ? ` <span style="color:#a9f5ba;font-size:11px">(${reps}×)</span>` : ''}</b><small>${q.desc}</small><div class="q-bar"><div class="q-fill" style="width:${pct}%"></div></div></div><div class="q-right"><span class="q-pay">+${q.reward} 🪙</span><span class="q-prog">${done ? 'Lista ✅' : `${cur}/${q.goal}`}</span></div></div>`;
+            }).join('');
+        }
+        function toggleQuest(force) {
+            if (!started || gameEnded) return;
+            const wantOpen = force === undefined ? !questOpen : force;
+            if (wantOpen && !questJournal) {
+                toast('ENCUENTRA EL DIARIO DE MISIONES EN UN COFRE ABANDONADO');
+                return;
+            }
+            if (!wantOpen && !questOpen) return;
+            questOpen = wantOpen;
+            if (questOpen) {
+                mining = false;
+                if (craftOpen) { craftOpen = false; crafting = null; $('craft-prog-fill').style.width = '0'; setDisplay(craftPanel, 'none'); }
+                if (stoveOpen) closeStove();
+                if (guideOpen) { guideOpen = false; setDisplay(guidePanel, 'none'); }
+                if (shopOpen) closeShop(true);
+                if (pickerOpen) closePicker(true);
+                closeChest(true);
+                setDisplay(questPanel, 'flex'); renderQuestPanel(); playSound('click');
+                if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+            } else {
+                setDisplay(questPanel, 'none');
+                if (!IS_MOBILE) tryLock();
+            }
+        }
+        $('quest-tabs').addEventListener('click', (e) => {
+            const b = e.target.closest('[data-qt]');
+            if (!b) return;
+            questTab = b.dataset.qt; playSound('click'); renderQuestPanel();
+        });
+        $('quest-close').addEventListener('click', () => toggleQuest(false));
+        ui.questCard.style.cursor = 'pointer';
+        ui.questCard.addEventListener('click', () => toggleQuest());
+
+        // ---- Comerciantes 3D y Tienda ----
+        const MERCHANT_DEFS = [
+            {
+                id: 'braulio', name: 'Mercader Braulio', icon: '🧳', x: 6.5, z: 7.5, cloak: 0x3b5b4f, hood: 0x263d34, pack: 0x6e4726,
+                desc: 'Junto al claro de la cabaña. Vende herramientas básicas, antorchas, comida y semillas.',
+                stock: [
+                    { k: 'torch', n: 4, price: 12, desc: 'Antorchas para iluminar y frenar la noche.' },
+                    { k: 'cooked', n: 2, price: 18, desc: 'Carne asada lista para recuperar hambre.' },
+                    { k: 'tseed', n: 3, price: 14, desc: 'Semillas de tomate para cultivar en parcelas.' },
+                    { k: 'rod', n: 1, price: 24, desc: 'Caña de pescar para los lagos del bosque.' },
+                    { k: 'hoe', n: 1, price: 20, desc: 'Azada para labrar tierra y cosechar tomates.' },
+                    { k: 'axe', n: 1, price: 22, desc: 'Hacha resistente para talar más rápido.' },
+                    { k: 'planks', n: 8, price: 16, desc: 'Tablas listas para construir o reforzar.' }
+                ]
+            },
+            {
+                id: 'valeria', name: 'Comerciante Valeria', icon: '🏹', x: 32, z: -34, cloak: 0x6d352e, hood: 0x48201b, pack: 0x5c3e24,
+                desc: 'En el Campamento de los Buscadores. Ofrece armas de caza, hierro y equipo de expedición.',
+                stock: [
+                    { k: 'ironknife', n: 1, price: 45, desc: 'Cuchillo de hierro veloz y letal para cazar.' },
+                    { k: 'spear', n: 1, price: 32, desc: 'Lanza larga: ataca animales desde 5 bloques.' },
+                    { k: 'iron', n: 2, price: 26, desc: 'Lingotes de hierro para herramientas y vallas.' },
+                    { k: 'jerky', n: 3, price: 24, desc: 'Carne seca duradera y muy nutritiva.' },
+                    { k: 'lantern', n: 2, price: 28, desc: 'Farol cálido que calma la cordura.' },
+                    { k: 'tent', n: 1, price: 65, desc: 'Casa de acampar portátil con interior seguro.' }
+                ]
+            },
+            {
+                id: 'tomas', name: 'Buhonero Tomás', icon: '🏮', x: -41, z: -18, cloak: 0x494469, hood: 0x2f2b48, pack: 0x695032,
+                desc: 'Junto al Puesto del Guardabosques. Trae mecheros, amuletos, hogueras y música.',
+                stock: [
+                    { k: 'lighter', n: 1, price: 34, desc: 'Mechero (30 usos) para encender llamas al instante.' },
+                    { k: 'charm', n: 1, price: 42, desc: 'Atrapasueños: reduce las ilusiones del bosque.' },
+                    { k: 'stew', n: 2, price: 28, desc: 'Estofado caliente que restaura hambre y moral.' },
+                    { k: 'bonfire', n: 1, price: 38, desc: 'Hoguera de gran radio protector nocturno.' },
+                    { k: 'guitar', n: 1, price: 50, desc: 'Guitarra: recupera cordura mientras tocas.' },
+                    { k: 'pick', n: 1, price: 24, desc: 'Pico para extraer piedra y vetas de hierro.' }
+                ]
+            }
+        ];
+        const MERCHANTS = [];
+        function buildMerchantRig(cfg) {
+            const g = new THREE.Group();
+            g.position.set(cfg.x, GROUND, cfg.z);
+            const mat = (col, em) => new THREE.MeshLambertMaterial(em ? { color: col, emissive: em } : { color: col });
+            const box = (parent, w, h, d, col, x, y, z, em) => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(col, em));
+                m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+                parent.add(m); return m;
+            };
+            // Cuerpo del viajero
+            box(g, 0.2, 0.45, 0.22, 0x2a1f18, -0.14, 0.225, 0);
+            box(g, 0.2, 0.45, 0.22, 0x2a1f18, 0.14, 0.225, 0);
+            box(g, 0.56, 0.92, 0.38, cfg.cloak, 0, 0.88, 0);
+            box(g, 0.64, 0.24, 0.42, cfg.hood, 0, 1.28, 0);
+            // Mochila de carga a la espalda
+            box(g, 0.46, 0.56, 0.26, cfg.pack, 0, 1.04, -0.32);
+            box(g, 0.48, 0.14, 0.14, 0xc7aa78, 0, 1.38, -0.32);
+            // Cabeza encapuchada y ojos amables
+            box(g, 0.44, 0.44, 0.44, cfg.hood, 0, 1.58, 0);
+            box(g, 0.34, 0.34, 0.08, 0x1e1815, 0, 1.56, 0.19);
+            box(g, 0.07, 0.06, 0.04, 0xffd27d, -0.09, 1.6, 0.22, 0xffb84a);
+            box(g, 0.07, 0.06, 0.04, 0xffd27d, 0.09, 1.6, 0.22, 0xffb84a);
+            // Báculo y farol cálido
+            box(g, 0.08, 1.8, 0.08, 0x5c3e24, -0.44, 0.92, 0.14);
+            const lanternPivot = new THREE.Group(); lanternPivot.position.set(-0.44, 1.78, 0.24); g.add(lanternPivot);
+            box(lanternPivot, 0.18, 0.24, 0.18, 0x2a241d, 0, -0.22, 0);
+            box(lanternPivot, 0.12, 0.16, 0.12, 0xffd27a, 0, -0.22, 0, 0xff9f3a);
+            const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireGlowTexture, color: 0xffb454, transparent: true, opacity: 0.72, blending: THREE.AdditiveBlending, depthWrite: false }));
+            glow.scale.set(2.4, 2.4, 1); glow.position.set(0, -0.22, 0); lanternPivot.add(glow);
+            // Caja de mercancía junto al comerciante
+            box(g, 0.56, 0.48, 0.56, 0x7c5432, 0.66, 0.24, 0.22);
+            box(g, 0.22, 0.16, 0.22, 0xd4a446, 0.66, 0.56, 0.22, 0x503a0a);
+            // Hitbox invisible para apuntar con facilidad
+            const hit = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.2, 1.4), new THREE.MeshBasicMaterial());
+            hit.position.set(0, 1.1, 0); hit.visible = false; g.add(hit);
+            scene.add(g);
+            return { ...cfg, mesh: g, hit, glow, lanternPivot, heading: Math.atan2(-cfg.x, -cfg.z) };
+        }
+        for (const cfg of MERCHANT_DEFS) MERCHANTS.push(buildMerchantRig(cfg));
+
+        function updateMerchants(delta) {
+            const hide = inBackrooms() || inTent;
+            for (const m of MERCHANTS) {
+                m.mesh.visible = !hide;
+                if (hide) continue;
+                const dx = player.position.x - m.x, dz = player.position.z - m.z, d = Math.hypot(dx, dz);
+                if (d < 12) {
+                    const targetH = Math.atan2(dx, dz);
+                    m.heading += wrapPi(targetH - m.heading) * Math.min(1, delta * 4);
+                }
+                m.mesh.rotation.y = m.heading;
+                m.lanternPivot.rotation.z = Math.sin(time * 2.1 + m.x) * 0.07;
+                const pulse = 0.68 + Math.sin(time * 4.5 + m.z) * 0.12;
+                m.glow.material.opacity = pulse;
+                m.glow.scale.setScalar(2.1 + pulse * 0.5);
+            }
+            if (shopOpen && activeMerchant) {
+                if (hide || Math.hypot(activeMerchant.x - player.position.x, activeMerchant.z - player.position.z) > 6.2) closeShop(true);
+            }
+        }
+        function renderShop() {
+            const m = activeMerchant; if (!m) return;
+            setText($('shop-title'), `${m.icon} ${m.name.toUpperCase()}`);
+            setText($('shop-coins'), `🪙 ${coins}`);
+            setText($('shop-desc'), m.desc);
+            $('shop-list').innerHTML = m.stock.map((it, idx) => {
+                const isTool = TOOLS.has(it.k);
+                const fullTool = isTool && inventory[it.k] > 0 && durab[it.k] >= TOOL_USES[it.k];
+                const repairTool = isTool && inventory[it.k] > 0 && durab[it.k] < TOOL_USES[it.k];
+                const noRoom = !isTool && roomFor(it.k) < 1;
+                const noMoney = coins < it.price;
+                const disabled = noMoney || fullTool || noRoom;
+                const btnTxt = fullTool ? 'Ya nuevo' : (repairTool ? `Renovar · ${it.price} 🪙` : `Comprar · ${it.price} 🪙`);
+                const badge = fullTool ? 'Ya tienes uno nuevo' : (noRoom ? 'Mochila llena' : `Tienes: ${inventory[it.k] || 0}`);
+                return `<div class="shop-item"><div class="q-ic">${icon(it.k)}</div><div class="q-body"><b>${ITEMS[it.k][1]}${it.n > 1 ? ` ×${it.n}` : ''} <span style="font-size:11px;color:#b8aa8f;font-weight:normal">· ${badge}</span></b><small>${it.desc}</small></div><button class="shop-buy" data-buy="${idx}" ${disabled ? 'disabled' : ''}>${btnTxt}</button></div>`;
+            }).join('');
+        }
+        function buyFromShop(idx) {
+            const m = activeMerchant; if (!m || !m.stock[idx]) return;
+            const it = m.stock[idx];
+            if (coins < it.price) { toast(`NECESITAS ${it.price} 🪙`); return; }
+            if (TOOLS.has(it.k)) {
+                if (inventory[it.k] > 0) {
+                    if (durab[it.k] >= TOOL_USES[it.k]) { toast('YA TIENES ESA HERRAMIENTA NUEVA'); return; }
+                    coins -= it.price;
+                    durab[it.k] = TOOL_USES[it.k];
+                    playSound('coin');
+                    toast(`🪙 -${it.price} · ${ITEMS[it.k][1].toUpperCase()} RENOVADA`);
+                    updateInventoryHUD(); updateQuestHUD(); renderShop();
+                    return;
+                }
+                if (roomFor(it.k) < 1) { fullMsg(); return; }
+                coins -= it.price;
+                addItem(it.k, 1);
+                durab[it.k] = TOOL_USES[it.k];
+            } else {
+                if (roomFor(it.k) < 1) { fullMsg(); return; }
+                const room = roomFor(it.k);
+                const giveAmt = Math.min(it.n, room);
+                coins -= it.price;
+                const got = addItem(it.k, giveAmt);
+                if (giveAmt < it.n) spawnDrop(it.k, it.n - giveAmt);
+                if (got > 0) popSlot(it.k);
+            }
+            playSound('coin');
+            toast(`🪙 -${it.price} · COMPRASTE ${ITEMS[it.k][1].toUpperCase()}${it.n > 1 ? ` ×${it.n}` : ''}`);
+            updateInventoryHUD(); updateQuestHUD(); renderShop();
+        }
+        function openShop(m) {
+            if (!started || gameEnded || !m) return;
+            if (craftOpen) toggleCraft(false);
+            if (questOpen) { questOpen = false; setDisplay(questPanel, 'none'); }
+            if (guideOpen) { guideOpen = false; setDisplay(guidePanel, 'none'); }
+            if (stoveOpen) closeStove();
+            if (pickerOpen) closePicker(true);
+            closeChest(true);
+            activeMerchant = m; shopOpen = true; mining = false;
+            setDisplay(shopPanel, 'flex'); renderShop(); playSound('click');
+            if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+        }
+        function closeShop(silent) {
+            if (!shopOpen) return;
+            shopOpen = false; activeMerchant = null;
+            setDisplay(shopPanel, 'none');
+            if (!silent && !IS_MOBILE) tryLock();
+        }
+        $('shop-list').addEventListener('click', (e) => {
+            const b = e.target.closest('button[data-buy]');
+            if (!b || b.disabled) return;
+            buyFromShop(+b.dataset.buy);
+        });
+        $('shop-close').addEventListener('click', () => closeShop());
 
         const player = {
             position: new THREE.Vector3(0, 2.6, 0),
@@ -6267,7 +6659,7 @@
                 wasLocked = true;
                 paused = false;
                 setDisplay(ui.pause, 'none');
-            } else if (wasLocked && started && !gameEnded && !craftOpen && !guideOpen && !chestOpen && !pickerOpen && !chatOpen) {
+            } else if (wasLocked && started && !gameEnded && !craftOpen && !guideOpen && !chestOpen && !questOpen && !shopOpen && !pickerOpen && !chatOpen) {
                 paused = true;
                 clearInputs();
                 setDisplay(ui.pause, 'flex');
@@ -6303,6 +6695,8 @@
             if (e.target && e.target.id === 'guide-q') { if (e.code === 'Escape') e.target.blur(); return; }   // escribiendo en el buscador del Utilitario
             if (e.code === 'Escape' && started && !gameEnded) {
                 e.preventDefault();
+                if (shopOpen) { closeShop(); return; }
+                if (questOpen) { toggleQuest(false); return; }
                 if (guideOpen) { toggleGuide(false); return; }
                 if (stoveOpen || craftOpen) { toggleCraft(false); return; }
                 if (chestOpen) { closeChest(); return; }
@@ -6320,9 +6714,10 @@
             if (e.repeat || !started || paused || gameEnded) return;
             if (e.code === 'KeyF') toggleFlashlight();
             if (e.code === 'KeyC') triggerCameraFlash();
-            if (e.code === 'KeyE') { if (guideOpen) toggleGuide(false); else if (stoveOpen) toggleCraft(false); else doAction(); }
+            if (e.code === 'KeyE') { if (shopOpen) closeShop(); else if (questOpen) toggleQuest(false); else if (guideOpen) toggleGuide(false); else if (stoveOpen) toggleCraft(false); else doAction(); }
             if (e.code === 'KeyQ') toggleCraft();
             if (e.code === 'KeyG') toggleGuide();
+            if (e.code === 'KeyM') toggleQuest();
             if (e.code === 'KeyO') { objUntil = performance.now() + OBJ_SHOW_MS; setDisplay(ui.objective, ui.objective._t ? 'flex' : 'none'); }   // volver a ver el objetivo 10 s
             if (e.code === 'KeyB') toggleBag();
             if (e.code === 'KeyX') hideNote();   // cierra la nota del diario para ver mejor
@@ -6348,6 +6743,7 @@
         bindButton('btn-flash', toggleFlashlight);
         bindButton('btn-camera', () => triggerCameraFlash());
         bindButton('btn-craft', () => toggleCraft());
+        bindButton('btn-quest', () => toggleQuest());
         bindButton('btn-save', () => requestSave(true));
 
         // --- Interacción con la puerta (raycast) ---
@@ -7804,7 +8200,7 @@
             pendingGuide = false; pendingOmen = 0; pendingReveal = 0;
             inTent = false; tentFrom = null; tentFx.state = 'idle'; tentFadeEl.style.opacity = 0; tentLight.intensity = 0;
             objKey = '';
-            closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false); closePicker(true); if (stoveOpen) closeStove(); hideNote();
+            closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false); if (questOpen) { questOpen = false; setDisplay(questPanel, 'none'); } if (shopOpen) closeShop(true); closePicker(true); if (stoveOpen) closeStove(); hideNote();
             clearDrops();
             for (let i = animals.length - 1; i >= 0; i--) removeAnimal(i);
             resetMonsterAI(); clearTraces(); endIllusion();
@@ -10191,6 +10587,20 @@
                 const d = _v.length();
                 if (d < (p.isTent ? 5.2 : 4) && d < (best ? best.d : 9) + 0.5 && _v.dot(_rd) / d > (p.type === 'ladder' ? 0.99 : p.isTent ? 0.88 : 0.97)) best = { type: 'prop', prop: p, d };
             }
+            if (!inBackrooms() && !inTent) {
+                camera.getWorldDirection(_rd);
+                for (const m of MERCHANTS) {
+                    const mh = raycaster.intersectObject(m.hit, false)[0];
+                    if (mh && mh.distance < 4.5 && mh.distance < (best ? best.d : 9)) {
+                        best = { type: 'merchant', m, d: mh.distance };
+                    } else {
+                        const dx = m.x - camera.position.x, dy = GROUND + 1.2 - camera.position.y, dz = m.z - camera.position.z, d = Math.hypot(dx, dy, dz);
+                        if (d < 4.3 && d > 0.05 && ((dx * _rd.x + dy * _rd.y + dz * _rd.z) / d) > 0.91 && d < (best ? best.d : 9)) {
+                            best = { type: 'merchant', m, d };
+                        }
+                    }
+                }
+            }
             focus = best;
         }
         // ¿Lo colocó el jugador? (queda registrado en `edits`). Evita bloquear la puerta con un bloque imposible de quitar.
@@ -10224,6 +10634,7 @@
             }
             if (f.type === 'brDoor2') return `${A}: abrir Puerta de Salida y regresar al mundo principal`;
             if (f.type === 'loot') return f.c.opened ? 'COFRE VACÍO' : `${A}: abrir el cofre abandonado`;
+            if (f.type === 'merchant') return `${A}: comerciar con ${f.m.name} (${coins} 🪙)`;
             if (f.type === 'verity') return `${A}: agarrar a Verity`;
             if (f.type === 'tentExit') return `${A}: salir de la casa de acampar`;
             if (f.type === 'tentStation') return `${A}: mejorar la casa de acampar (nivel ${tentUpg.level}/3)`;
@@ -10276,8 +10687,8 @@
             S.t0 = dayTime; S.rate = (TOTAL_CYCLE - dayTime) / S.lapse;
             S.from.copy(camera.position); S.fromYaw = yaw; S.fromPitch = pitch; S.yaw0 = yaw; S.pitch0 = pitch;
             if (lieAt) S.lie.copy(lieAt); else S.lie.set(bedMesh.position.x, bedMesh.position.y + 0.52, bedMesh.position.z - 0.45);
-            clearInputs(); closePicker(true); closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false);
-            mining = false; hand.visible = false; flashlight.intensity = 0;
+            clearInputs(); closePicker(true); closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false); if (questOpen) { questOpen = false; setDisplay(questPanel, 'none'); } if (shopOpen) closeShop(true);
+            mining = false; hand.visible = false; flashlight.intensity = 0; flashlightFill.intensity = 0;
             setDisplay(ui.prompt, 'none');
             player.sanity = 100;
             player.hunger = Math.max(15, player.hunger - (holdingVerity() ? 0 : 20));   // pasar la noche durmiendo da hambre (salvo con Verity en la mano)
@@ -10300,8 +10711,8 @@
             S.yaw0 = yaw; S.pitch0 = pitch; S.blink = !bed; S.big = o.big || null; S.small = o.small || null; S.msg = o.msg || null;
             if (bed) { S.lie.set(bedMesh.position.x, bedMesh.position.y + 0.52, bedMesh.position.z - 0.45); S.wp = LIE_PITCH; S.wyaw = LIE_YAW; S.wroll = 0.03; }
             else { S.lie.set(player.position.x, player.position.y - 0.75, player.position.z); S.wp = -0.85; S.wyaw = S.yaw0 + 0.35; S.wroll = 0.1; }
-            clearInputs(); closePicker(true); closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false);
-            mining = false; hand.visible = false; flashlight.intensity = 0; setDisplay(ui.prompt, 'none');
+            clearInputs(); closePicker(true); closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false); if (questOpen) { questOpen = false; setDisplay(questPanel, 'none'); } if (shopOpen) closeShop(true);
+            mining = false; hand.visible = false; flashlight.intensity = 0; flashlightFill.intensity = 0; setDisplay(ui.prompt, 'none');
             sleepEls.ov.style.opacity = 1; sleepEls.top.style.height = sleepEls.bot.style.height = '11vh'; sleepEls.cap.style.opacity = 1;
             updateSleep(0);   // el primer fotograma ya está en pose
         }
@@ -10400,7 +10811,7 @@
             if (scare.active || gameEnded) return;
             const S = scare, M = who || monster; S.m = M; S.toBackrooms = soft === 'backrooms'; S.soft = !S.toBackrooms && !!soft;
             S.active = true; S.t = 0; S.title = title; S.desc = desc; S.flashOn = false;
-            closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false); closePicker(true);
+            closeChest(true); if (craftOpen) toggleCraft(false); if (guideOpen) toggleGuide(false); if (questOpen) { questOpen = false; setDisplay(questPanel, 'none'); } if (shopOpen) closeShop(true); closePicker(true);
             clearInputs(); mining = false; hand.visible = false; hideNote();
             setDisplay(ui.prompt, 'none');
             const dx = M.position.x - player.position.x, dz = M.position.z - player.position.z, d = Math.hypot(dx, dz);
@@ -10451,7 +10862,10 @@
             // Linterna: sigue la mirada y parpadea con el golpe
             camera.getWorldDirection(_fw);
             flashlight.position.copy(camera.position); flashlight.target.position.copy(camera.position).add(_fw);
-            flashlight.intensity = flashlightOn ? FLASHLIGHT_INTENSITY * (hit && Math.random() < 0.4 ? 0.15 : 1) : 0;
+            const scareFl = flashlightOn ? FLASHLIGHT_INTENSITY * (hit && Math.random() < 0.4 ? 0.15 : 1) : 0;
+            flashlight.intensity = scareFl;
+            flashlightFill.position.copy(camera.position).addScaledVector(_fw, 1.3);
+            flashlightFill.intensity = scareFl > 0 ? 1.85 * (scareFl / FLASHLIGHT_INTENSITY) : 0;
             // Capas: corte a negro al empezar, destello blanco al impacto, destellos alternos con imágenes IA, tinte rojo y fundido final
             let black = t < 0.06 ? 1 : (t < SC_CUT ? 1 - (t - 0.06) / (SC_CUT - 0.06) : 0);
             if (t > SC_FADE) black = Math.max(black, smooth01((t - SC_FADE) / (SC_END - SC_FADE)));
@@ -10509,6 +10923,8 @@
         // --- ACCIÓN: una sola tecla/botón para todo lo interactuable ---
         function doAction() {
             if (chestOpen && !sleepCine.active) { closeChest(); return; }   // E con el cofre abierto lo cierra
+            if (shopOpen && !sleepCine.active) { closeShop(); return; }
+            if (questOpen && !sleepCine.active) { toggleQuest(false); return; }
             if (started && !paused && !gameEnded && !sleepCine.active && selected === 'verity' && inventory.verity > 0 && (!focus || focus.type === 'block')) { releaseVerity(); return; }   // con Verity en la mano, E la suelta a tu lado
             if (started && !paused && !gameEnded && !sleepCine.active && (!focus || focus.type === 'block')) {   // fogata apagada delante (las del bosque no son objetos colocados)
                 const df = aimedDeadFire();
@@ -10538,6 +10954,7 @@
             else if (f.type === 'ctable') toggleCraft(true);
             else if (f.type === 'cguide') toggleGuide(true);
             else if (f.type === 'loot') openLootChest(f.c);
+            else if (f.type === 'merchant') openShop(f.m);
             else if (f.type === 'verity') grabVerity();
             else if (f.type === 'tentExit') exitTent();
             else if (f.type === 'tentStation') openChest(tentStationObj);
@@ -10644,6 +11061,7 @@
             spawnBurst(p.x, p.y + 0.4, p.z, 0xd63a2a, 10, 1.8, 2.4);
             playSound('pluck'); kick('pick');
             useTool('hoe'); updateInventoryHUD(); popSlot('tomato');
+            questProgress('tomato', 1);
             toast(`COSECHA: +${a} 🍅${b ? ` +${b} 🌱` : ''}`);
         }
         function useHoe() {   // azada en la mano: labra tierra/césped, cosecha cultivos maduros o muestra el progreso
@@ -10673,6 +11091,7 @@
             if (pl.crop) { toast('YA HAY UN CULTIVO AHÍ'); return; }
             inventory.tseed--; pl.crop = 'tomato'; pl.grow = 0; setCropStage(pl, 1);
             playSound('till', 0.6); kick('plant'); updateInventoryHUD();
+            questProgress('plant', 1);
             toast('SEMILLA PLANTADA: MADURA EN ~2 MIN · MÁS RÁPIDO CON LLUVIA, MÁS LENTO DE NOCHE');
         }
         // Botones contextuales: COMER aparece al llevar comida; PONER cambia según el objeto (semillas: se activa sobre una parcela vacía)
@@ -10725,6 +11144,7 @@
                 if (addItem(out, 1) <= 0) { inventory[k]++; fullMsg(); return; }
                 spawnBurst(player.position.x, player.position.y - 0.9, player.position.z, 0x9a9a9a, 6, 1.2, 1.6);
                 handKick = 1; playSound('sizzle'); toast(k === 'meat' ? '🍖 CARNE ASADA · AHORA SÍ ALIMENTA' : '🐠 PESCADO ASADO · AHORA SÍ ALIMENTA'); updateInventoryHUD(); popSlot(out);
+                questProgress('cook', 1);
                 return;
             }
             if (player.hunger >= 97) { toast('NO TIENES HAMBRE'); return; }
@@ -10869,13 +11289,14 @@
             spawnBurst(fishing.x, WATER_Y, fishing.z, 0x6fa8c8, 12, 2.2, 3.2);
             kick('reel', 1.2); playSound('splash');
             updateInventoryHUD(); popSlot(k);
+            if (k === 'fish') questProgress('fish', got);
             toast(`+${got} ${ITEMS[k][0]} ${ITEMS[k][1].toUpperCase()}${extra}`);
             stopFishing();
         }
         function updateFishing(delta) {
             if (!fishing.active) return;
             const dx = fishing.x - player.position.x, dz = fishing.z - player.position.z;
-            if (selected !== 'rod' || !(inventory.rod > 0) || craftOpen || guideOpen || chestOpen || pickerOpen || dx * dx + dz * dz > 64) { stopFishing(); return; }   // cambiar de objeto o alejarte recoge el sedal
+            if (selected !== 'rod' || !(inventory.rod > 0) || craftOpen || guideOpen || chestOpen || questOpen || shopOpen || pickerOpen || dx * dx + dz * dz > 64) { stopFishing(); return; }   // cambiar de objeto o alejarte recoge el sedal
             fishing.t += delta;
             if (fishing.phase === 'wait') {
                 bobber.position.y = WATER_Y - 0.02 + Math.sin(time * 2.2) * 0.012;
@@ -11336,7 +11757,9 @@
             const id = f.id; dropAt = [f.x, f.y, f.z, time];
             spawnBurst(f.x, f.y, f.z, blockColor(id), 8, 2.0, 2.6);
             if (LOGS.has(id)) {
-                give('log', fell(f.x, f.y, f.z)); playSound('woodBreak'); useTool('axe');
+                const cut = fell(f.x, f.y, f.z);
+                give('log', cut); playSound('woodBreak'); useTool('axe');
+                questProgress('log', cut);
                 if (Math.random() < (id === B.DEAD_LOG ? 0.12 : (id === B.RED_LOG ? 0.45 : 0.3))) give('resin', Math.random() < 0.2 ? 2 : 1);   // resina: a veces al talar un árbol
                 return;
             }
@@ -11368,7 +11791,7 @@
         let mineProg = 0, mineKey = '', mineSoundT = 0, mineMsgT = 0;
         function updateMining(delta) {
             atkCd = Math.max(0, atkCd - delta);
-            if (mining && !craftOpen && !guideOpen && !chestOpen && !pickerOpen) {   // un animal en la mira tiene prioridad sobre el bloque
+            if (mining && !craftOpen && !guideOpen && !chestOpen && !questOpen && !shopOpen && !pickerOpen) {   // un animal en la mira tiene prioridad sobre el bloque
                 const an = aimedAnimal();
                 if (an) {
                     hl.visible = false; crack.visible = false; mineProg = 0; mineKey = '';
@@ -11378,7 +11801,7 @@
             }
             const fb = focus, pl = fb && fb.type === 'block' ? fb.plant : null;   // una mata/flor en la línea de mira se rompe primero (rápido)
             const f = pl ? { x: pl.x, y: pl.y, z: pl.z, id: pl.id, plant: true } : fb;
-            const isB = !!f && (f.plant || f.type === 'block') && !craftOpen && !guideOpen && !chestOpen && !pickerOpen;
+            const isB = !!f && (f.plant || f.type === 'block') && !craftOpen && !guideOpen && !chestOpen && !questOpen && !shopOpen && !pickerOpen;
             hl.visible = isB;
             if (isB) hl.position.set(f.x, f.y, f.z);
             mineMsgT -= delta;
@@ -11787,6 +12210,9 @@
                 if (g < n) left.push([k, n - g]);
             }
             c.loot = left; c.lidOpen = true; updateInventoryHUD(); playSound('creak');
+            const firstJournal = !questJournal;
+            if (firstJournal) unlockQuestJournal(true);
+            if (!c._countedQuest) { c._countedQuest = true; questProgress('chest', 1); }
             if (got.length) toast(`COFRE ABANDONADO · ${got.join(' · ')}`);
             if (left.length) { setTimeout(fullMsg, got.length ? 1800 : 0); return; }   // mochila llena: lo que no cabe se queda en el cofre
             c.opened = true; lootedChests.add(c.id);
@@ -11873,6 +12299,7 @@
                 if (g < amt) { full = true; spawnDrop(k, amt - g, [a.x, GROUND + 0.8, a.z]); }   // lo que no cabe cae al suelo
             }
             updateInventoryHUD();
+            questProgress('hunt', 1);
             toast(`${a.def.name.toUpperCase()} · ${got.join(' · ') || 'NADA'}${full ? ' · LO QUE NO CABE QUEDA EN EL SUELO' : ''}`);
             const bonus = w === 'ironknife' ? 0.6 : (w === 'knife' ? 0.35 : 0);   // con cuchillo se aprovecha mejor la pieza
             if (bonus && Math.random() < bonus) { const g = addItem('meat', 1); if (g > 0) { toast(`+${g} ${ITEMS.meat[1].toUpperCase()} · BUEN CORTE`); gotMeat = true; } else spawnDrop('meat', 1, [a.x, GROUND + 0.8, a.z]); }
@@ -12337,7 +12764,7 @@
         let ghostOk = null;
         function updatePreview() {
             const k = selected;
-            if (!started || gameEnded || inBackrooms() || craftOpen || guideOpen || chestOpen || pickerOpen || !PLACEABLE[k] || !(inventory[k] > 0) || !focus || focus.type !== 'block') { ghost.visible = false; return; }
+            if (!started || gameEnded || inBackrooms() || craftOpen || guideOpen || chestOpen || questOpen || shopOpen || pickerOpen || !PLACEABLE[k] || !(inventory[k] > 0) || !focus || focus.type !== 'block') { ghost.visible = false; return; }
             const chk = placeCheck(focus, k), sz = GHOST_SIZE[k] || [1, 1, 1], { px, py, pz } = focus;
             ghost.scale.set(sz[0] * 1.01, sz[1] * 1.01, sz[2] * 1.01);
             ghost.position.set(px, GHOST_SIZE[k] ? py - 0.5 + sz[1] / 2 : py, pz);
@@ -12814,6 +13241,8 @@
             let fl = flashlightOn ? FLASHLIGHT_INTENSITY : 0;
             if (flashlightOn && player.sanity < 40 && Math.random() < (1 - player.sanity / 40) * 0.12) fl *= 0.15;
             flashlight.intensity = fl;
+            flashlightFill.position.copy(player.position).addScaledVector(_dir, 1.3);
+            flashlightFill.intensity = fl > 0 ? 1.85 * (fl / FLASHLIGHT_INTENSITY) : 0;
 
             // Interacción con la puerta
             updateFocus();
@@ -12940,6 +13369,9 @@
             slots.fill(null); slots[0] = 'planks'; selSlot = 0; ownedSeen.clear(); ownedSeen.add('planks'); closePicker(true);
             durab.axe = durab.pick = durab.hoe = durab.lighter = durab.knife = durab.ironknife = durab.spear = durab.rod = 0; discovered.clear(); crafting = null; craftCat = 'all';
             craftOpen = false; setDisplay(craftPanel, 'none'); guideOpen = false; setDisplay(guidePanel, 'none'); if (stoveOpen) closeStove();
+            questOpen = false; setDisplay(questPanel, 'none'); shopOpen = false; activeMerchant = null; setDisplay(shopPanel, 'none');
+            coins = 0; questJournal = false; questTab = 'active'; questState = { prog: {}, done: {}, repCount: {} };
+            updateQuestHUD();
             chestOpen = false; chestProp = null; setDisplay(chestPanel, 'none');
             for (const p of PARTS) { p.life = 0; p.mesh.visible = false; }
             updateInventoryHUD();
@@ -13068,6 +13500,7 @@
             sv.vg = { day: VG.day, done: VG.done, hinted: VG.hinted };
             sv.respawn = { x: respawn.x, y: respawn.y, z: respawn.z, name: respawn.name };
             sv.shelf = { read: [...shelfRead], idx: shelfIdx };
+            sv.coins = coins; sv.qj = questJournal; sv.qs = questState;
             return sv;
         }
         function writeSlot(i, thumb) {
@@ -13185,6 +13618,12 @@
                 if (sv.vg) { VG.day = sv.vg.day; VG.done = !!sv.vg.done; VG.hinted = !!sv.vg.hinted; }
                 if (sv.respawn) Object.assign(respawn, sv.respawn);
                 if (sv.shelf) { shelfRead.clear(); (sv.shelf.read || []).forEach((k) => shelfRead.add(k)); shelfIdx = sv.shelf.idx | 0; }
+                coins = Math.max(0, sv.coins | 0);
+                questJournal = !!sv.qj;
+                questState = (sv.qs && typeof sv.qs === 'object')
+                    ? { prog: sv.qs.prog || {}, done: sv.qs.done || {}, repCount: sv.qs.repCount || {} }
+                    : { prog: {}, done: {}, repCount: {} };
+                updateQuestHUD();
                 objKey = ''; placePageObj();
                 updateInventoryHUD();
                 clock.getDelta();
@@ -13408,7 +13847,7 @@
                 if (!gameEnded) {
                     if (scare.active) updateScare(delta);   // jumpscare: la cámara y la criatura son lo único que se mueve
                     else if (sleepCine.active) updateSleep(delta);   // durmiendo: el mundo se detiene salvo el reloj y la cámara
-                    else { updateChapter3FX(delta); updatePhysics(delta); if (!inTent) { updateMonster(delta); updateAnimals(delta); updateVigia(delta); } else vigia.visible = false; updateVerity(delta); }
+                    else { updateChapter3FX(delta); updatePhysics(delta); if (!inTent) { updateMonster(delta); updateAnimals(delta); updateVigia(delta); updateMerchants(delta); } else vigia.visible = false; updateVerity(delta); }
                 } else clearCh3FX();
                 updateFollowers();
                 animatePickups(); updateDrops(delta); updateWake(delta); updateGuitar(delta); updateLife(delta); updateWet(delta); updateFallingLeaves(delta);
